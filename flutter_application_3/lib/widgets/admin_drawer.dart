@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../services/sesion.dart'; // SESIONES S8
+
+typedef JsonMap = Map<String, dynamic>;
+
 class AdminDrawer extends StatelessWidget {
-  final Map<String, dynamic> usuario;
+  final JsonMap usuario;
   final String rutaActual;
 
   const AdminDrawer({
@@ -79,6 +83,13 @@ class AdminDrawer extends StatelessWidget {
                     '/register',
                   ),
                   _opcion(context, Icons.post_add, 'Agregar blog', '/add-blog'),
+                  // AUTORIZADO MÓDULO EDITAR
+                  _opcion(
+                    context,
+                    Icons.edit_note_outlined,
+                    'Editar publicaciones',
+                    '/edit-blogs',
+                  ),
                   _opcion(
                     context,
                     Icons.account_circle_outlined,
@@ -103,6 +114,7 @@ class AdminDrawer extends StatelessWidget {
                   ),
                 ),
                 onTap: () {
+                  Sesion.cerrar(); // SESIONES S8
                   Navigator.pushNamedAndRemoveUntil(
                     context,
                     '/login',

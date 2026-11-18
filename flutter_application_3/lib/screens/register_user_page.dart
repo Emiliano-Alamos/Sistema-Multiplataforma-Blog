@@ -204,7 +204,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         // NUEVO: Solo en el panel se muestra el tipo de usuario.
                         // REDISEÑO: Dropdown hereda borde y relleno de inputDecorationTheme con ícono outlined
                         DropdownButtonFormField<int>(
-                          value: tipoUsuario,
+                          key: ValueKey(tipoUsuario), // REDISEÑO: se reconstruye si tipoUsuario cambia (también al limpiar)
+                          initialValue: tipoUsuario,
                           decoration: const InputDecoration(
                             labelText: 'Tipo de usuario',
                             prefixIcon: Icon(Icons.people_outline),

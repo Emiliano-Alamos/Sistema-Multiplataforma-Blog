@@ -1,48 +1,47 @@
-
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../models/user_model.dart';
+import 'sesion.dart'; // SESIONES S4
+
+typedef UserList = List<UserModel>;
+typedef JsonMap = Map<String, dynamic>;
 
 class UserService {
   static const String baseUrl = 'http://127.0.0.1:8000';
-  Future<List<UserModel>> obtenerUsuarios() async {
+  Future<UserList> obtenerUsuarios() async {
     final respuesta = await http
-        .get(Uri.parse('$baseUrl/usuarios'))
+        .get(
+          Uri.parse('$baseUrl/usuarios'),
+          headers: Sesion.encabezados(), // SESIONES S4
+        )
         .timeout(const Duration(seconds: 10));
 
+    Sesion.revisar(respuesta); // SESIONES S4
+
     if (respuesta.statusCode != 200) {
-      throw Exception(
-        'Error al consultar usuarios: ${respuesta.statusCode}',
-      );
+      throw Exception('Error al consultar usuarios: ${respuesta.statusCode}');
     }
 
     final List<dynamic> datos = jsonDecode(respuesta.body);
 
-    return datos
-        .map(
-          (json) => UserModel.fromJson(
-            json as Map<String, dynamic>,
-          ),
-        )
-        .toList();
+    return datos.map((json) => UserModel.fromJson(json as JsonMap)).toList();
   }
 
   Future<UserModel> agregarUsuario(UserModel usuario) async {
     final respuesta = await http
         .post(
           Uri.parse('$baseUrl/usuarios'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
+          headers: Sesion.encabezados(), // SESIONES S4
           body: jsonEncode(usuario.toJsonCrear()),
         )
         .timeout(const Duration(seconds: 10));
 
+    Sesion.revisar(respuesta); // SESIONES S4
+
     if (respuesta.statusCode == 201) {
-      return UserModel.fromJson(
-        jsonDecode(respuesta.body) as Map<String, dynamic>,
-      );
+      return UserModel.fromJson(jsonDecode(respuesta.body) as JsonMap);
     }
 
     throw Exception(_mensajeError(respuesta));
@@ -52,10 +51,7 @@ class UserService {
     final respuesta = await http
         .put(
           Uri.parse('$baseUrl/usuarios/${usuario.id}'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
+          headers: Sesion.encabezados(), // SESIONES S4
           body: jsonEncode({
             'nom_usr': usuario.nombre,
             'mail': usuario.correo,
@@ -65,10 +61,10 @@ class UserService {
         )
         .timeout(const Duration(seconds: 10));
 
+    Sesion.revisar(respuesta); // SESIONES S4
+
     if (respuesta.statusCode == 200) {
-      return UserModel.fromJson(
-        jsonDecode(respuesta.body) as Map<String, dynamic>,
-      );
+      return UserModel.fromJson(jsonDecode(respuesta.body) as JsonMap);
     }
 
     throw Exception(_mensajeError(respuesta));
@@ -76,11 +72,15 @@ class UserService {
 
   Future<void> eliminarUsuario(int id) async {
     final respuesta = await http
-        .delete(Uri.parse('$baseUrl/usuarios/$id'))
+        .delete(
+          Uri.parse('$baseUrl/usuarios/$id'),
+          headers: Sesion.encabezados(), // SESIONES S4
+        )
         .timeout(const Duration(seconds: 10));
 
-    if (respuesta.statusCode != 200 &&
-        respuesta.statusCode != 204) {
+    Sesion.revisar(respuesta); // SESIONES S4
+
+    if (respuesta.statusCode != 200 && respuesta.statusCode != 204) {
       throw Exception(_mensajeError(respuesta));
     }
   }

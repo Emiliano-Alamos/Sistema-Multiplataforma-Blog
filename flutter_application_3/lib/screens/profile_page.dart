@@ -1,7 +1,12 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
+import '../services/sesion.dart'; // SESIONES S7
 import '../widgets/admin_drawer.dart';
+
+typedef JsonMap = Map<String, dynamic>;
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -16,7 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _nombre = TextEditingController();
   final _correo = TextEditingController();
   final _direccion = TextEditingController();
-  Map<String, dynamic> _usuario = {};
+  JsonMap _usuario = {};
   bool _cargando = false;
   bool _inicializado = false;
 
@@ -25,8 +30,8 @@ class _ProfilePageState extends State<ProfilePage> {
     super.didChangeDependencies();
     if (_inicializado) return;
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is Map<String, dynamic>) {
-      _usuario = Map<String, dynamic>.from(args);
+    if (args is JsonMap) {
+      _usuario = JsonMap.from(args);
     }
     _nombre.text = _usuario['nom_usr']?.toString() ?? '';
     _correo.text = _usuario['mail']?.toString() ?? '';
@@ -47,29 +52,43 @@ class _ProfilePageState extends State<ProfilePage> {
     final id = _usuario['id_usr'];
     if (id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se recibió el identificador del usuario. Vuelve a iniciar sesión.')),
+        const SnackBar(
+          content: Text(
+            'No se recibió el identificador del usuario. Vuelve a iniciar sesión.',
+          ),
+        ),
       );
       return;
     }
     setState(() => _cargando = true);
     try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/usuarios/$id'),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: jsonEncode({
-          'nom_usr': _nombre.text.trim(),
-          'mail': _correo.text.trim().toLowerCase(),
-          'dir_usr': _direccion.text.trim().isEmpty ? null : _direccion.text.trim(),
-          'tip_usu': (_usuario['tip_usu'] as num?)?.toInt() ?? 1,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/usuarios/$id'),
+            headers: Sesion.encabezados(), // SESIONES S7
+            body: jsonEncode({
+              'nom_usr': _nombre.text.trim(),
+              'mail': _correo.text.trim().toLowerCase(),
+              'dir_usr': _direccion.text.trim().isEmpty
+                  ? null
+                  : _direccion.text.trim(),
+              'tip_usu': (_usuario['tip_usu'] as num?)?.toInt() ?? 1,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
-      final dynamic data = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+      Sesion.revisar(response); // SESIONES S7
+
+      final dynamic data = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : null;
       if (response.statusCode != 200) {
         final detail = data is Map ? data['detail'] : null;
-        throw Exception(detail?.toString() ?? 'Error HTTP ${response.statusCode}');
+        throw Exception(
+          detail?.toString() ?? 'Error HTTP ${response.statusCode}',
+        );
       }
-      if (data is Map<String, dynamic>) _usuario = Map<String, dynamic>.from(data);
+      if (data is JsonMap) _usuario = JsonMap.from(data);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Perfil actualizado correctamente')),
@@ -90,9 +109,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final colores = tema.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-      ),
+      appBar: AppBar(title: const Text('Mi perfil')),
       drawer: AdminDrawer(usuario: _usuario, rutaActual: '/profile'),
       body: Center(
         child: ConstrainedBox(
@@ -183,7 +200,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (v) => v == null || v.trim().length < 2
-                            ? 'Ingresa un nombre válido' : null,
+                            ? 'Ingresa un nombre válido'
+                            : null,
                       ),
                       const SizedBox(height: 20),
                       Text(
@@ -201,7 +219,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (v) => v == null || !v.contains('@')
-                            ? 'Ingresa un correo válido' : null,
+                            ? 'Ingresa un correo válido'
+                            : null,
                       ),
                       const SizedBox(height: 20),
                       Text(

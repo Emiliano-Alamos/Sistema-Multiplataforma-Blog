@@ -10,9 +10,9 @@ flutter_application_3/android/local.properties
 flutter_application_3/ios/Flutter/ephemeral/
 .idea/
 *.iml
-
-# Credenciales y configuraciones privadas
+backend_API/uploads/
+.pytest_cache/
+.vscode/
 .env
-**/.env
-**/.env.*
-!**/.env.example
+venv/
+.venv/

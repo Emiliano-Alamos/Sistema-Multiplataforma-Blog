@@ -7,8 +7,14 @@ import '../utils/image_url.dart'; // LÓGICA AUTORIZADA 1
 class PostCard extends StatelessWidget {
   final PostModel post;
   final VoidCallback onTap;
+  final String textoBoton; // AUTORIZADO MÓDULO EDITAR
 
-  const PostCard({super.key, required this.post, required this.onTap});
+  const PostCard({
+    super.key,
+    required this.post,
+    required this.onTap,
+    this.textoBoton = 'Leer publicación', // AUTORIZADO MÓDULO EDITAR
+  });
 
   // REDISEÑO: Placeholder discreto en proporción 16:9 con fondo primaryTint para imagen ausente o fallida
   Widget _buildPlaceholder() {
@@ -91,6 +97,26 @@ class PostCard extends StatelessWidget {
                   ],
                   // REDISEÑO: Título de tarjeta 18 semibold en textPrimary (Sección 3)
                   Text(post.titulo, style: textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  // AUTOR E2: Autor en una línea con ícono person_outline de 16 px y bodySmall en textSecondary
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person_outline,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          post.textoAutor,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   // REDISEÑO: Descripción de hasta 3 líneas en textSecondary (Sección 6)
                   Text(
@@ -114,7 +140,7 @@ class PostCard extends StatelessWidget {
                       size: 18,
                       color: AppColors.primaryDark,
                     ),
-                    label: const Text('Leer publicación'),
+                    label: Text(textoBoton), // AUTORIZADO MÓDULO EDITAR
                   ),
                 ],
               ),

@@ -157,17 +157,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        // LÓGICA AUTORIZADA 3
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/recover');
-                        },
-                        child: const Text('¿Olvidaste tu contraseña?'),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     // REDISEÑO: Textos del botón primario en oración según sección 5
                     PrimaryButton(
                       text: cargando ? 'Validando...' : 'Ingresar',

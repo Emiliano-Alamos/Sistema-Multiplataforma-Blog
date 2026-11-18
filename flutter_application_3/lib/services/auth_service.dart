@@ -1,14 +1,15 @@
-
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
+import 'sesion.dart'; // SESIONES S3
+
+typedef JsonMap = Map<String, dynamic>;
 
 class AuthService {
   static const String baseUrl = 'http://127.0.0.1:8000';
 
-  String? validarLogin({
-    required String usuario,
-    required String password,
-  }) {
+  String? validarLogin({required String usuario, required String password}) {
     if (usuario.trim().isEmpty || password.isEmpty) {
       return 'Ingresa tu correo y contraseña';
     }
@@ -43,34 +44,35 @@ class AuthService {
     return null;
   }
 
-  Future<Map<String, dynamic>> registrarUsuario({
+  Future<JsonMap> registrarUsuario({
     required String nombre,
     required String correo,
     required String password,
     String? direccion,
-    int tipoUsuario = 1,
+    int tipoUsuario = 2, // SESIONES S3
   }) async {
-    final respuesta = await http.post(
-      Uri.parse('$baseUrl/usuarios'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'nom_usr': nombre.trim(),
-        'mail': correo.trim().toLowerCase(),
-        'password': password,
-        'dir_usr': direccion,
-        'tip_usu': tipoUsuario,
-      }),
-    ).timeout(const Duration(seconds: 10));
+    final respuesta = await http
+        .post(
+          Uri.parse('$baseUrl/usuarios'),
+          headers: Sesion.encabezados(), // SESIONES S3
+          body: jsonEncode({
+            'nom_usr': nombre.trim(),
+            'mail': correo.trim().toLowerCase(),
+            'password': password,
+            'dir_usr': direccion,
+            'tip_usu': tipoUsuario,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    Sesion.revisar(respuesta); // SESIONES S3
 
     final dynamic resultado = respuesta.body.isNotEmpty
         ? jsonDecode(respuesta.body)
         : null;
 
     if ((respuesta.statusCode == 200 || respuesta.statusCode == 201) &&
-        resultado is Map<String, dynamic>) {
+        resultado is JsonMap) {
       return resultado;
     }
 
@@ -78,10 +80,12 @@ class AuthService {
       throw Exception(resultado['detail'].toString());
     }
 
-    throw Exception('No se pudo registrar el usuario (HTTP ${respuesta.statusCode})');
+    throw Exception(
+      'No se pudo registrar el usuario (HTTP ${respuesta.statusCode})',
+    );
   }
 
-  Future<Map<String, dynamic>> autenticar({
+  Future<JsonMap> autenticar({
     required String correo,
     required String password,
   }) async {
@@ -101,9 +105,10 @@ class AuthService {
 
     final dynamic resultado = jsonDecode(respuesta.body);
 
-    if (respuesta.statusCode == 200 &&
-        resultado is Map<String, dynamic>) {
-      return resultado;
+    if (respuesta.statusCode == 200 && resultado is JsonMap) {
+      // SESIONES S3: la API devuelve el token y los datos del usuario.
+      Sesion.iniciar(resultado['access_token'] as String);
+      return JsonMap.from(resultado['usuario'] as Map);
     }
 
     if (respuesta.statusCode == 401) {
@@ -114,8 +119,6 @@ class AuthService {
       throw Exception(resultado['detail'].toString());
     }
 
-    throw Exception(
-      'Error al iniciar sesión: HTTP ${respuesta.statusCode}',
-    );
+    throw Exception('Error al iniciar sesión: HTTP ${respuesta.statusCode}');
   }
 }
