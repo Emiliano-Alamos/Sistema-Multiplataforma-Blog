@@ -1,17 +1,26 @@
-// AUTORIZADO ETIQUETA: Lista fija de etiquetas en el orden requerido
+// Etiquetas relacionadas con las tecnologías emergentes
 const List<String> kEtiquetasFijas = [
-  'Tarjeta de crédito',
-  'Técnicas de ahorro',
-  'Inversiones sencillas',
-  'Presupuesto personal',
-  'Educación financiera',
+  'IA',
+  'Inteligencia Artificial',
+  'ChatBots',
+  'Tecnología',
+  'Robótica',
+  'Realidad Virtual',
+  'Ciberseguridad',
+  'Automatización',
+  'Programación',
+  'Innovación',
+  'Herramientas',
+  'Nuevo',
 ];
 
-// AUTORIZADO ETIQUETA: Devuelve la lista incluyendo la etiqueta actual al inicio si es un dato antiguo no vacío
+// Mantiene disponible la etiqueta actual al editar una publicación
 List<String> obtenerOpcionesEtiquetas(String? etiquetaActual) {
   final actual = etiquetaActual?.trim() ?? '';
+
   if (actual.isNotEmpty && !kEtiquetasFijas.contains(actual)) {
     return [actual, ...kEtiquetasFijas];
   }
+
   return List<String>.from(kEtiquetasFijas);
 }

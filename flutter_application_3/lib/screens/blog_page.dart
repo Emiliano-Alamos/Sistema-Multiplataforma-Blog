@@ -4,7 +4,6 @@ import '../models/post_model.dart';
 import '../services/post_service.dart';
 import '../services/sesion.dart'; // SESIONES S8
 import '../theme/app_theme.dart'; // REDISEÑO
-import '../utils/etiquetas.dart'; // AUTORIZADO BUSCADOR
 import '../widgets/post_card.dart';
 import 'post_detail_page.dart';
 import '../widgets/admin_drawer.dart';
@@ -27,6 +26,7 @@ class BlogPage extends StatefulWidget {
 class _BlogPageState extends State<BlogPage> {
   final PostService postService = PostService();
   late Future<PostList> futurePosts;
+  late Future<List<String>> futureEtiquetas;
   String nombreUsuario = 'Usuario';
   JsonMap usuarioActual = {'nom_usr': 'Usuario', 'mail': '', 'tip_usu': 2};
   bool argumentoLeido = false;
@@ -59,6 +59,7 @@ class _BlogPageState extends State<BlogPage> {
   void initState() {
     super.initState();
     futurePosts = consultarPosts(); // AUTORIZADO BUSCADOR
+    futureEtiquetas = obtenerEtiquetas();
   }
 
   // AUTORIZADO BUSCADOR: consulta siempre con los filtros aplicados. Así, el
@@ -70,9 +71,28 @@ class _BlogPageState extends State<BlogPage> {
     );
   }
 
+  // Obtenemos las etiquetas reales de todas las publicaciones de MySQL.
+  Future<List<String>> obtenerEtiquetas() async {
+    final posts = await postService.obtenerPosts();
+    final etiquetas = <String, String>{};
+
+    for (final post in posts) {
+      for (final etiqueta in post.tags.split(',')) {
+        final nombre = etiqueta.trim();
+        if (nombre.isNotEmpty) {
+          etiquetas.putIfAbsent(nombre.toLowerCase(), () => nombre);
+        }
+      }
+    }
+
+    return etiquetas.values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
   void recargarPosts() {
     setState(() {
-      futurePosts = consultarPosts(); // AUTORIZADO BUSCADOR
+      futurePosts = consultarPosts();
+      futureEtiquetas = obtenerEtiquetas();
     });
   }
 
@@ -162,7 +182,7 @@ class _BlogPageState extends State<BlogPage> {
       onSubmitted: (_) => buscar(),
       decoration: InputDecoration(
         labelText: 'Buscar',
-        hintText: 'Título o descripción',
+        hintText: 'Título, descripción o etiqueta',
         counterText: '',
         suffixIcon: IconButton(
           tooltip: 'Buscar',
@@ -172,26 +192,38 @@ class _BlogPageState extends State<BlogPage> {
       ),
     );
 
-    // AUTORIZADO BUSCADOR: la llave hace que se reinicie al limpiar filtros
-    final selectorEtiqueta = DropdownButtonFormField<String>(
-      key: ValueKey('etiqueta-$etiquetaFiltro'),
-      initialValue: etiquetaFiltro,
-      isExpanded: true,
-      style: textTheme.bodyLarge, // AUTORIZADO BUSCADOR: mismo tamaño que el campo de búsqueda
-      decoration: const InputDecoration(labelText: 'Etiqueta'),
-      items: [
-        const DropdownMenuItem<String>(
-          value: '',
-          child: Text('Todas las etiquetas'),
-        ),
-        ...kEtiquetasFijas.map(
-          (etiqueta) => DropdownMenuItem<String>(
-            value: etiqueta,
-            child: Text(etiqueta, overflow: TextOverflow.ellipsis),
-          ),
-        ),
-      ],
-      onChanged: cambiarEtiqueta,
+    // Mostramos en el selector las etiquetas existentes en MySQL.
+    final selectorEtiqueta = FutureBuilder<List<String>>(
+      future: futureEtiquetas,
+      builder: (context, snapshot) {
+        final opciones = List<String>.from(snapshot.data ?? []);
+
+        // Conservamos la selección si una etiqueta deja de estar disponible.
+        if (etiquetaFiltro.isNotEmpty && !opciones.contains(etiquetaFiltro)) {
+          opciones.insert(0, etiquetaFiltro);
+        }
+
+        return DropdownButtonFormField<String>(
+          key: ValueKey('etiqueta-$etiquetaFiltro'),
+          initialValue: etiquetaFiltro,
+          isExpanded: true,
+          style: textTheme.bodyLarge,
+          decoration: const InputDecoration(labelText: 'Etiqueta'),
+          items: [
+            const DropdownMenuItem<String>(
+              value: '',
+              child: Text('Todas las etiquetas'),
+            ),
+            ...opciones.map(
+              (etiqueta) => DropdownMenuItem<String>(
+                value: etiqueta,
+                child: Text(etiqueta, overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          ],
+          onChanged: cambiarEtiqueta,
+        );
+      },
     );
 
     return Scaffold(

@@ -67,8 +67,9 @@ app.add_middleware(
 
 
 # CARPETA PARA GUARDAR Y MOSTRAR FOTOGRAFÍAS
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# Usamos la ubicación del propio main.py, no la carpeta donde abrimos la terminal.
+UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
@@ -291,17 +292,9 @@ def eliminar_usuario(
 
 # BLOG
 
-# BUSCADOR: mismas reglas que la web (config/config.php e includes/publicaciones.php).
-# Si cambian allá, hay que cambiarlas aquí también.
-BUSQUEDA_MAX = 100        # largo máximo del texto de búsqueda (lo demás se recorta)
-BUSQUEDA_PALABRAS = 8     # máximo de palabras que se usan al buscar
-ETIQUETAS_PERMITIDAS = [  # misma lista fija que la web y que lib/utils/etiquetas.dart
-    "Tarjeta de crédito",
-    "Técnicas de ahorro",
-    "Inversiones sencillas",
-    "Presupuesto personal",
-    "Educación financiera",
-]
+# BUSCADOR DEL BLOG DE TECNOLOGÍAS EMERGENTES
+BUSQUEDA_MAX = 100        # largo máximo del texto escrito
+BUSQUEDA_PALABRAS = 8     # máximo de palabras que se buscan
 
 
 @app.get(
@@ -318,10 +311,9 @@ def listar_blog(
     # BUSCADOR 1. Texto: se quitan los espacios de los extremos y se recorta a 100 caracteres.
     texto = (q or "").strip()[:BUSQUEDA_MAX]
 
-    # Búsqueda por palabras: CADA palabra debe aparecer en el título o en la
-    # descripción, en cualquier orden. Es parcial ("ahor" encuentra "Ahorro").
-    # No distingue mayúsculas ni acentos: eso lo hace la base de datos
-    # (collation utf8mb4_general_ci), igual que en la web.
+    # Buscamos cada palabra en el título, la descripción o las etiquetas.
+    # La búsqueda parcial permite encontrar "robót" en "Robótica".
+    # Las mayúsculas dependen de la collation de MySQL.
     for palabra in texto.split()[:BUSQUEDA_PALABRAS]:
         # En LIKE, % y _ son comodines. Para buscarlos como texto normal se usa
         # "|" como carácter de escape y se antepone a | % _ (igual que la web).
@@ -331,16 +323,19 @@ def listar_blog(
             or_(
                 Blog.titulo.like(patron, escape="|"),
                 Blog.descripcion.like(patron, escape="|"),
+                Blog.tags.like(patron, escape="|"),
             )
         )
 
-    # BUSCADOR 2. Etiqueta: si no es una de la lista se ignora (igual que la web).
-    # FIND_IN_SET también encuentra datos antiguos con varias etiquetas separadas
-    # por coma ("Tarjeta de crédito, Técnicas de ahorro").
+    # BUSCADOR 2. Filtramos por la etiqueta escrita, aunque no esté en una
+    # lista fija. FIND_IN_SET busca entre las etiquetas separadas por coma.
     etiqueta = (etiqueta or "").strip()
-    if etiqueta in ETIQUETAS_PERMITIDAS:
+    if etiqueta:
         consulta = consulta.where(
-            func.find_in_set(etiqueta, func.replace(Blog.tags, ", ", ",")) > 0
+            func.find_in_set(
+                func.lower(etiqueta),
+                func.lower(func.replace(Blog.tags, ", ", ",")),
+            ) > 0
         )
 
     # BUSCADOR 3. Orden igual que la web: la más reciente primero

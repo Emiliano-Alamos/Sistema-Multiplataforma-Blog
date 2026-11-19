@@ -1,5 +1,5 @@
 """
-Pruebas automatizadas de la API (FastAPI) del Blog de Educación Financiera.
+Pruebas automatizadas de la API (FastAPI) del Blog de Tecnologías Emergentes.
 
 Cómo ejecutarlas, desde la carpeta backend_API y con el entorno activado:
 
@@ -11,7 +11,7 @@ IMPORTANTE
   vuelve a crear en cada ejecución con database/base_de_datos.sql.
 - Nunca tocan la base indicada en DB_NAME del archivo .env.
 - Del .env solo toman el servidor: DB_HOST, DB_PORT, DB_USER y DB_PASSWORD.
-- Las fotografías de prueba se guardan en una carpeta temporal, no en uploads.
+- Las fotografías de prueba se guardan en una carpeta temporal, no en uploads real.
 - Las pruebas se ejecutan en orden: algunas usan datos creados por las anteriores.
 """
 
@@ -50,20 +50,40 @@ CONEXION = {
 
 
 def preparar_base():
-    """Borra la base de pruebas y la crea de nuevo con el script del repositorio."""
+    """Recrea exclusivamente bd_blog_pruebas; nunca modifica la base principal."""
     texto = SCRIPT_SQL.read_text(encoding="utf-8")
-    texto = texto.replace("bd_aplicacion_movil_pro", BASE_PRUEBAS)
 
-    # Se quitan los comentarios (líneas que empiezan con --).
+    # Comprobamos el nombre del SQL ANTES de borrar la base de pruebas.
+    # Si cambia la configuración del proyecto, detenemos las pruebas.
+    if (
+        "CREATE DATABASE IF NOT EXISTS `bd_aplicacion_movil`" not in texto
+        or "USE `bd_aplicacion_movil`;" not in texto
+    ):
+        raise RuntimeError("El SQL no tiene el nombre de base esperado. No se ejecutaron pruebas.")
+
+    # Redirigimos el SQL a la base de pruebas, nunca a la de la aplicación.
+    texto = texto.replace("`bd_aplicacion_movil`", f"`{BASE_PRUEBAS}`")
+
+    # Ignoramos las líneas de comentarios del archivo SQL.
     lineas = [l for l in texto.splitlines() if not l.strip().startswith("--")]
     instrucciones = [i.strip() for i in "\n".join(lineas).split(";") if i.strip()]
 
+    # Comprobación adicional para no ejecutar instrucciones en otra base.
+    if (
+        not any(i.startswith(f"CREATE DATABASE IF NOT EXISTS `{BASE_PRUEBAS}`") for i in instrucciones)
+        or f"USE `{BASE_PRUEBAS}`" not in instrucciones
+        or "`bd_aplicacion_movil`" in " ".join(instrucciones)
+    ):
+        raise RuntimeError("El SQL de pruebas no es seguro. No se modificó ninguna base.")
+
     con = pymysql.connect(**CONEXION)
-    with con.cursor() as cur:
-        cur.execute(f"DROP DATABASE IF EXISTS `{BASE_PRUEBAS}`")
-        for instruccion in instrucciones:
-            cur.execute(instruccion)
-    con.close()
+    try:
+        with con.cursor() as cur:
+            cur.execute(f"DROP DATABASE IF EXISTS `{BASE_PRUEBAS}`")
+            for instruccion in instrucciones:
+                cur.execute(instruccion)
+    finally:
+        con.close()
 
 
 def sql(consulta, args=None):
@@ -82,15 +102,29 @@ preparar_base()
 os.environ["DB_NAME"] = BASE_PRUEBAS
 os.environ["JWT_SECRET"] = SECRETO
 
-# main.py guarda las fotografías en la carpeta "uploads" del directorio actual:
-# se cambia a una carpeta temporal para no ensuciar la carpeta real.
-os.chdir(tempfile.mkdtemp(prefix="pruebas_blog_"))
+# Las imágenes de pruebas se guardan en una carpeta temporal separada.
+# main.py usa ahora una ruta absoluta, así que ajustamos también su montaje /uploads.
+carpeta_temporal = Path(tempfile.mkdtemp(prefix="pruebas_blog_"))
+os.chdir(carpeta_temporal)
 sys.path.insert(0, str(BACKEND))
 
 from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 import main  # noqa: E402
 import seguridad  # noqa: E402
+
+main.UPLOAD_DIR = carpeta_temporal
+for ruta in main.app.routes:
+    if ruta.path == "/uploads":
+        ruta.app = StaticFiles(directory=carpeta_temporal)
+        break
+else:
+    raise RuntimeError("No se encontró el montaje /uploads para las pruebas.")
+
+# Confirmamos que FastAPI quedó apuntando a la base de pruebas.
+if main.engine.url.database != BASE_PRUEBAS:
+    raise RuntimeError("FastAPI no apunta a la base de pruebas; se detuvo la ejecución.")
 
 
 @pytest.fixture(scope="session")
@@ -133,7 +167,7 @@ def general(c):
 def post_id(c, admin):
     r = c.post(
         "/blog",
-        json={"titulo": "Ahorro básico", "descripcion": "Texto", "tags": "Ahorro"},
+        json={"titulo": "Introducción a la Robótica", "descripcion": "Texto", "tags": "Robótica"},
         headers=h(admin["access_token"]),
     )
     assert r.status_code == 201
@@ -523,7 +557,7 @@ def test_comentario_usa_el_usuario_del_token(c, admin, general, post_id):
 def test_blog_con_foto_admin(c, admin):
     r = c.post(
         "/blog/foto",
-        data={"titulo": "Con foto", "descripcion": "d", "tags": "Ahorro"},
+        data={"titulo": "Con foto", "descripcion": "d", "tags": "Robótica"},
         files={"imagen": ("a.jpg", b"\xff\xd8\xff", "image/jpeg")},
         headers=h(admin["access_token"]),
     )
@@ -673,7 +707,7 @@ def test_e_crear_guarda_al_autor_del_token(c, admin):
     yo = admin["usuario"]["id_usr"]
     r = c.post(
         "/blog",
-        json={"titulo": "Con autor", "descripcion": "d", "tags": "Ahorro", "usr_id": 999},
+        json={"titulo": "Con autor", "descripcion": "d", "tags": "Robótica", "usr_id": 999},
         headers=h(admin["access_token"]),
     )
     assert r.status_code == 201 and r.json()["usr_id"] == yo and (r.json()["autor"] == "Admin Uno")
@@ -856,7 +890,7 @@ def test_c_validaciones(c, general, pub_c):
 
 
 def test_c_texto_con_acentos_y_emojis(c, general, pub_c):
-    texto = "¡Qué útil! Ahorré $500 😀 <b>ñandú</b>"
+    texto = "¡Qué útil! Probé IA 😀 <b>ñandú</b>"
     idc = c.post(
         "/comentarios",
         json={"comentario": texto, "blog_id": pub_c},
@@ -907,7 +941,7 @@ def pub(c, admin):
             "titulo": "Original",
             "descripcion": "Texto original",
             "img": "/uploads/vieja.jpg",
-            "tags": "Técnicas de ahorro",
+            "tags": "Inteligencia Artificial",
         },
         headers=h(admin["access_token"]),
     )
@@ -924,7 +958,7 @@ def test_d_editar_con_json(c, admin, pub):
             "titulo": "  Editada  ",
             "descripcion": " Nuevo texto ",
             "img": "/uploads/vieja.jpg",
-            "tags": "Presupuesto personal",
+            "tags": "Programación",
         },
         headers=t,
     )
@@ -934,7 +968,7 @@ def test_d_editar_con_json(c, admin, pub):
         "titulo": "Editada",
         "descripcion": "Nuevo texto",
         "img": "/uploads/vieja.jpg",
-        "tags": "Presupuesto personal",
+        "tags": "Programación",
         "fecha": str(fecha),
         "usr_id": admin["usuario"]["id_usr"],
         "autor": "Admin Uno",
@@ -946,7 +980,7 @@ def test_d_editar_con_json(c, admin, pub):
             "Editada",
             "Nuevo texto",
             "/uploads/vieja.jpg",
-            "Presupuesto personal",
+            "Programación",
             admin["usuario"]["id_usr"],
             fecha,
         ),
@@ -1010,14 +1044,14 @@ def test_d_editar_con_foto(c, admin, pub):
     idp = pub["id_blog"]
     r = c.put(
         f"/blog/{idp}/foto",
-        data={"titulo": "Con foto nueva", "descripcion": "d", "tags": "Educación financiera"},
+        data={"titulo": "Con foto nueva", "descripcion": "d", "tags": "Tecnología"},
         files=FOTO,
         headers=t,
     )
     assert (
         r.status_code == 200
         and r.json()["titulo"] == "Con foto nueva"
-        and (r.json()["tags"] == "Educación financiera")
+        and (r.json()["tags"] == "Tecnología")
     )
     assert (
         r.json()["img"].startswith("/uploads/")
@@ -1197,12 +1231,12 @@ def ids_de(c, token, **parametros):
 def pubs_g(c, admin):
     """Publicaciones de prueba. Todas llevan la palabra «Zqx» para aislarlas del resto."""
     datos = {
-        "basico": ("Zqx ahorro básico", "Guía para el año nuevo", "Técnicas de ahorro"),
-        "interes_pct": ("Zqx interés 50%", "Tasas", "Tarjeta de crédito"),
-        "interes_sin": ("Zqx Interes 50 pesos", "Sin porcentaje", "Inversiones sencillas"),
-        "guion": ("Zqx mi_ahorro", "Con guion bajo", "Presupuesto personal"),
-        "barra": ("Zqx a|b", "Con barra vertical", "Educación financiera"),
-        "varias": ("Zqx etiquetas antiguas", "d", "Tarjeta de crédito, Técnicas de ahorro"),
+        "basico": ("Zqx robot básico", "Guía para el año nuevo", "Inteligencia Artificial"),
+        "interes_pct": ("Zqx precisión 50%", "Mediciones de precisión", "Ciberseguridad"),
+        "interes_sin": ("Zqx Precision 50 puntos", "Sin decimales", "IA"),
+        "guion": ("Zqx mi_robot", "Con guion bajo", "Programación"),
+        "barra": ("Zqx a|b", "Con barra vertical", "Tecnología"),
+        "varias": ("Zqx múltiples etiquetas", "d", "Ciberseguridad, Inteligencia Artificial"),
         "nueve": ("Zqx ocho uno dos tres cuatro cinco seis", "d", None),
     }
     ids = {}
@@ -1235,15 +1269,17 @@ def test_g_busqueda_mayusculas_acentos_y_parcial(c, general, pubs_g):
     assert ids_de(c, t, q="zqx BASICO") == [pubs_g["basico"]]           # mayúsculas y acento
     assert ids_de(c, t, q="zqx ano") == [pubs_g["basico"]]              # «ano» encuentra «año» (descripción)
     assert ids_de(c, t, q="básico ZQX") == [pubs_g["basico"]]           # cualquier orden
-    assert set(ids_de(c, t, q="zqx ahor")) == {pubs_g["basico"], pubs_g["guion"]}  # parcial
-    assert set(ids_de(c, t, q="ZQX INTERÉS")) == {pubs_g["interes_pct"], pubs_g["interes_sin"]}
+    assert set(ids_de(c, t, q="zqx robot")) == {pubs_g["basico"], pubs_g["guion"]}  # parcial
+    assert set(ids_de(c, t, q="ZQX PRECISIÓN")) == {pubs_g["interes_pct"], pubs_g["interes_sin"]}
     assert ids_de(c, t, q="zqx noexiste") == []                         # todas las palabras deben estar
+    # El buscador también revisa las etiquetas de MySQL.
+    assert pubs_g["interes_sin"] in ids_de(c, t, q="IA")
 
 
 def test_g_caracteres_especiales_son_texto(c, general, pubs_g):
     t = general["access_token"]
     assert ids_de(c, t, q="zqx 50%") == [pubs_g["interes_pct"]]         # % no es comodín
-    assert ids_de(c, t, q="zqx i_a") == [pubs_g["guion"]]               # _ no es comodín
+    assert ids_de(c, t, q="zqx i_r") == [pubs_g["guion"]]               # _ no es comodín
     assert ids_de(c, t, q="zqx a|b") == [pubs_g["barra"]]               # | (carácter de escape)
     assert ids_de(c, t, q="%") == ids_de(c, t, q="50%")                  # solo «%» no trae todo
     assert ids_de(c, t, q="zqx ' OR 1=1 --") == []                       # sin inyección SQL
@@ -1262,27 +1298,27 @@ def test_g_limites_de_largo_y_de_palabras(c, general, pubs_g):
 
 def test_g_filtro_por_etiqueta(c, admin, general, pubs_g):
     t = general["access_token"]
-    con_etiqueta = ids_de(c, t, etiqueta="Técnicas de ahorro")
+    con_etiqueta = ids_de(c, t, etiqueta="Inteligencia Artificial")
     esperado = [
         f[0]
         for f in sql(
             "SELECT id_blog FROM blog WHERE FIND_IN_SET(%s, REPLACE(tags, ', ', ',')) > 0 "
             "ORDER BY fecha DESC, id_blog DESC",
-            ("Técnicas de ahorro",),
+            ("Inteligencia Artificial",),
         )
     ]
     assert con_etiqueta == esperado
-    assert pubs_g["basico"] in con_etiqueta and pubs_g["varias"] in con_etiqueta  # incluye dato antiguo
-    assert set(ids_de(c, t, q="zqx", etiqueta="Tarjeta de crédito")) == {
+    assert pubs_g["basico"] in con_etiqueta and pubs_g["varias"] in con_etiqueta  # admite varias etiquetas
+    assert set(ids_de(c, t, q="zqx", etiqueta="Ciberseguridad")) == {
         pubs_g["interes_pct"], pubs_g["varias"]
     }
     # Texto y etiqueta se combinan (las dos condiciones).
-    assert ids_de(c, t, q="zqx interés", etiqueta="Inversiones sencillas") == [pubs_g["interes_sin"]]
-    # Etiqueta que no está en la lista: se ignora, igual que la web.
-    todas = ids_de(c, t)
-    assert ids_de(c, t, etiqueta="Ahorro") == todas
-    assert ids_de(c, t, etiqueta="técnicas de ahorro ") == ids_de(c, t)  # solo coincide exacta
-    assert ids_de(c, t, etiqueta=" Técnicas de ahorro ") == con_etiqueta  # espacios extremos se quitan
+    assert ids_de(c, t, q="zqx precisión", etiqueta="IA") == [pubs_g["interes_sin"]]
+    # Si no existe la etiqueta, no se muestran publicaciones.
+    assert ids_de(c, t, etiqueta="Etiqueta inexistente") == []
+    # La API ignora los espacios de los extremos y no distingue mayúsculas.
+    assert ids_de(c, t, etiqueta="inteligencia artificial ") == con_etiqueta
+    assert ids_de(c, t, etiqueta=" Inteligencia Artificial ") == con_etiqueta
 
 
 def test_g_buscador_exige_sesion(c, pubs_g):

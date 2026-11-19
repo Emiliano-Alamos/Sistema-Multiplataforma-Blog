@@ -1,10 +1,11 @@
-# Blog de Educación Financiera – App móvil (Flutter + FastAPI + MySQL)
+# Blog de Tecnologías Emergentes – Flutter + FastAPI + MySQL
 
-Aplicación de blog sobre educación financiera desarrollada para la materia **Desarrollo de Aplicaciones Móviles** de la Universidad Tecnológica de Querétaro (UTEQ).
+Sistema de divulgación y aprendizaje sobre tecnologías emergentes, especialmente **Inteligencia Artificial (IA)**. Presenta publicaciones, explicaciones, recomendaciones y aplicaciones prácticas para personas interesadas en aprender tecnología. Se desarrolló para la materia **Desarrollo de Aplicaciones Móviles** de la Universidad Tecnológica de Querétaro (UTEQ).
 
 - **Cliente móvil:** Flutter (Material 3).
 - **API REST:** FastAPI (Python) con SQLAlchemy.
-- **Base de datos:** MySQL / MariaDB.
+- **Base de datos compartida:** MySQL / MariaDB.
+- **Complemento web:** PHP + Bootstrap, desarrollado por separado y conectado a la misma base de datos.
 
 **Integrantes:** Ricardo Esteban Ramos Rodríguez y Emiliano Martínez Alamos · Grupo: [LITIID014]
 
@@ -21,10 +22,10 @@ Aplicación de blog sobre educación financiera desarrollada para la materia **D
   - **1 = Administrador:** gestiona usuarios, publicaciones y comentarios.
   - **2 = Usuario general:** lee publicaciones y comenta. El registro público siempre crea este rol.
 - Publicaciones:
-  - Tienen título, descripción, imagen (cámara o galería), etiqueta de una lista fija, fecha y autor.
+  - Tienen título, descripción, imagen (cámara, galería o dirección de imagen), etiquetas, fecha y autor.
   - Se ven en orden de la más reciente a la más antigua.
-- Buscador por texto (título o descripción) y filtro por etiqueta.
-- Comentarios en las publicaciones y moderación (eliminación) por el administrador.
+- Buscador por texto (título, descripción o etiquetas) y filtro por etiquetas como IA, Robótica y Tecnología.
+- Comentarios en las publicaciones y moderación por el administrador.
 - Edición y eliminación de publicaciones por el administrador.
 
 ## Arquitectura
@@ -84,17 +85,23 @@ MySQL (usuario, blog, comentarios)
 
 Los comandos son para Windows (PowerShell o CMD).
 
+1. Descarga el repositorio desde GitHub (opción **Code → Download ZIP**) y descomprímelo, o clónalo con Git.
+2. Abre una terminal dentro de la carpeta principal del repositorio (`Flutter_LITIID014`).
+3. Sigue los pasos en este orden: **MySQL → FastAPI → Flutter**.
+
 ### 1. Base de datos
 
 1. Enciende MySQL (por ejemplo, desde el panel de XAMPP).
-2. Ejecuta el script `database/base_de_datos.sql`. Crea la base `bd_aplicacion_movil_pro` con sus tres tablas. Puedes hacerlo de dos formas:
+2. Ejecuta el script `database/base_de_datos.sql`. Crea la base `bd_aplicacion_movil` con sus tres tablas. Puedes hacerlo de dos formas:
    - En phpMyAdmin: pestaña **Importar**.
    - Desde la consola de MySQL:
      ```sql
      SOURCE C:/ruta/al/proyecto/database/base_de_datos.sql;
      ```
 
-El script no borra nada si la base ya existe. Además, la API crea las tablas que falten al arrancar.
+El script usa `CREATE ... IF NOT EXISTS`: no elimina los registros de una base existente, pero tampoco actualiza la estructura de tablas antiguas. Para una instalación desde cero, ejecútalo antes de iniciar la API. No incluye publicaciones de ejemplo.
+
+**Importante:** el nombre escrito en el script SQL y el valor `DB_NAME` de `.env` deben coincidir. Si agregas la web PHP, su conexión debe apuntar también a esa misma base.
 
 ### 2. API (FastAPI) – terminal 1
 
@@ -105,13 +112,13 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Copia `.env.example` como `.env` (en la misma carpeta) y ajusta los valores a tu computadora:
+Copia `.env.example` como `.env` (en la misma carpeta) con `Copy-Item .env.example .env` en PowerShell y ajusta los valores a tu computadora:
 
 | Variable                 | Qué es                                                                                        |
 | ------------------------ | --------------------------------------------------------------------------------------------- |
 | `DB_HOST`, `DB_PORT`     | Servidor y puerto de MySQL. XAMPP usa 3306 por defecto; cámbialo si el tuyo usa otro.         |
 | `DB_USER`, `DB_PASSWORD` | Usuario y contraseña de MySQL.                                                                |
-| `DB_NAME`                | `bd_aplicacion_movil_pro`                                                                     |
+| `DB_NAME`                | `bd_aplicacion_movil`                                                                     |
 | `JWT_SECRET`             | Clave para firmar los tokens. Debe tener 32 caracteres o más. **Sin ella la API no arranca.** |
 
 Para generar `JWT_SECRET`, ejecuta este comando y pega el resultado en el `.env`:
@@ -131,7 +138,7 @@ Comprueba que funciona:
 - http://127.0.0.1:8000 debe responder `{"mensaje": "API funcionando correctamente"}`.
 - La documentación interactiva está en http://127.0.0.1:8000/docs.
 
-> El archivo `.env` contiene contraseñas: **nunca lo subas al repositorio**. Ya está en `.gitignore`.
+> El archivo `.env` contiene contraseñas: **nunca lo subas a GitHub ni lo incluyas en archivos ZIP que compartas**. Está indicado en `.gitignore`, pero eso no lo excluye automáticamente de un ZIP creado manualmente. Comparte únicamente `.env.example`.
 
 ### 3. App móvil (Flutter) – terminal 2
 
@@ -141,14 +148,26 @@ flutter pub get
 flutter run -d chrome
 ```
 
-La app se conecta a la API en `http://127.0.0.1:8000`. Esa dirección está en la constante `baseUrl` de los archivos de `lib/services/`.
+La app se conecta a la API en `http://127.0.0.1:8000`. Esa dirección está en la constante `baseUrl` de los archivos de `lib/services/` (en Flutter Web, ejecutándose en la misma computadora).
 
 Para ejecutarla en un emulador de Android o en un celular, hay que cambiar esa dirección en todos los servicios:
 
 - **Emulador de Android:** `http://10.0.2.2:8000`.
 - **Celular:** la IP de la computadora en la red local, encendiendo la API con `--host 0.0.0.0`.
 
-### 4. Primer administrador
+### 4. Componente web PHP (si se instala por separado)
+
+La parte web que desarrollamos utiliza PHP, Bootstrap y MySQL. **No está dentro de este repositorio**, por lo que debes disponer también de `blog_web/` para instalarla.
+
+1. Instala o enciende Apache y MySQL desde XAMPP.
+2. Copia la carpeta `blog_web` a `C:\xampp\htdocs\blog_web`.
+3. Configura `blog_web/config/conexion.php` para que use la **misma base de datos** que FastAPI, sin publicar contraseñas.
+4. Mantén FastAPI ejecutándose si las imágenes del blog se muestran desde `/uploads`.
+5. Abre `http://localhost/blog_web/` en el navegador.
+
+La web tiene vistas para el administrador y el usuario general; ambas consultan las publicaciones y comentarios almacenados en MySQL. Las fotografías que se suban a `backend_API/uploads/` no se incluyen automáticamente en GitHub, porque esa carpeta está excluida en `.gitignore`.
+
+### 5. Primer administrador
 
 El registro desde la app siempre crea un **Usuario general**. Para tener el primer administrador:
 
@@ -167,13 +186,13 @@ Desde ese momento, ese administrador puede crear otros usuarios y administradore
 
 - **Usuario general:**
   - Inicia sesión y ve el blog.
-  - Busca por texto o filtra por etiqueta.
+  - Busca por título, descripción o etiqueta, y puede filtrar por etiquetas.
   - Abre una publicación y comenta.
   - Cierra sesión desde el menú de su avatar.
 - **Administrador:**
   - Usa el menú lateral para moverse entre usuarios, publicaciones y su perfil.
   - Entra al panel de usuarios y da de alta, edita o elimina usuarios. Siempre debe quedar al menos un administrador.
-  - Crea publicaciones con imagen y etiqueta.
+  - Crea publicaciones con imagen y etiquetas.
   - En **Editar publicaciones**, edita o elimina publicaciones y modera sus comentarios.
 
 ## Seguridad implementada
