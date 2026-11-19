@@ -2,11 +2,12 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart'; // API ÚNICA
 import '../models/comentario_model.dart';
 import 'sesion.dart';
 
 class ComentarioService {
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  static String get baseUrl => ApiConfig.baseUrl; // API ÚNICA
 
   // COMENTARIOS C2: comentarios visibles de UNA publicación,
   // del más reciente al más antiguo.

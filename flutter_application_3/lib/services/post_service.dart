@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart'; // API ÚNICA
 import '../models/post_model.dart';
 import 'sesion.dart'; // SESIONES S5
 
@@ -10,7 +11,7 @@ typedef PostList = List<PostModel>;
 typedef JsonMap = Map<String, dynamic>;
 
 class PostService {
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  static String get baseUrl => ApiConfig.baseUrl; // API ÚNICA
 
   // GUARDAR PUBLICACION CON JSON
   Future<PostModel> agregarPost({

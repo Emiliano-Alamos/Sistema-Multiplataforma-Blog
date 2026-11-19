@@ -7,7 +7,7 @@ Sistema de divulgación y aprendizaje sobre tecnologías emergentes, especialmen
 - **Base de datos compartida:** MySQL / MariaDB.
 - **Complemento web:** PHP + Bootstrap, desarrollado por separado y conectado a la misma base de datos.
 
-**Integrantes:** Ricardo Esteban Ramos Rodríguez y Emiliano Martínez Alamos · Grupo: [LITIID014]
+**Integrantes:** Ricardo Esteban Ramos Rodríguez y Emiliano Martínez Alamos · Grupo: LITIID014
 
 ---
 
@@ -64,6 +64,7 @@ MySQL (usuario, blog, comentarios)
 └── flutter_application_3/     App móvil en Flutter
     └── lib/
         ├── main.dart          Rutas de la app
+        ├── config/            Dirección de la API (un solo lugar)
         ├── models/            Usuario, publicación y comentario
         ├── screens/           Pantallas
         ├── services/          Llamadas a la API y sesión
@@ -78,6 +79,7 @@ MySQL (usuario, blog, comentarios)
 - **Flutter** con Dart 3.13.4 o superior (revisa con `flutter --version`).
 - **MySQL** o MariaDB. Por ejemplo, el de XAMPP.
 - **Google Chrome**, para ejecutar la app con `flutter run -d chrome`.
+- **Android Studio** con un emulador (opcional), para ejecutarla como app de Android.
 
 ---
 
@@ -86,7 +88,7 @@ MySQL (usuario, blog, comentarios)
 Los comandos son para Windows (PowerShell o CMD).
 
 1. Descarga el repositorio desde GitHub (opción **Code → Download ZIP**) y descomprímelo, o clónalo con Git.
-2. Abre una terminal dentro de la carpeta principal del repositorio (`Flutter_LITIID014`).
+2. Abre una terminal dentro de la carpeta principal del repositorio: `Sistema-Multiplataforma-Blog-main` si lo descargaste en ZIP, o `Sistema-Multiplataforma-Blog` si lo clonaste.
 3. Sigue los pasos en este orden: **MySQL → FastAPI → Flutter**.
 
 ### 1. Base de datos
@@ -145,15 +147,33 @@ Comprueba que funciona:
 ```powershell
 cd flutter_application_3
 flutter pub get
-flutter run -d chrome
 ```
 
-La app se conecta a la API en `http://127.0.0.1:8000`. Esa dirección está en la constante `baseUrl` de los archivos de `lib/services/` (en Flutter Web, ejecutándose en la misma computadora).
+Después elige dónde ejecutarla:
 
-Para ejecutarla en un emulador de Android o en un celular, hay que cambiar esa dirección en todos los servicios:
+| Dónde                 | Comando                                     | Dirección de la API que usa la app |
+| --------------------- | ------------------------------------------- | ---------------------------------- |
+| Chrome                | `flutter run -d chrome`                     | `http://127.0.0.1:8000`            |
+| Emulador de Android   | `flutter run -d emulator-5554`              | `http://10.0.2.2:8000`             |
 
-- **Emulador de Android:** `http://10.0.2.2:8000`.
-- **Celular:** la IP de la computadora en la red local, encendiendo la API con `--host 0.0.0.0`.
+La dirección se elige sola según dónde corre la app y está en un solo archivo: `lib/config/api_config.dart`. En el emulador, `10.0.2.2` es la computadora donde corre la API; la API se enciende igual que en el paso 2.
+
+Para el emulador:
+
+1. En Android Studio, crea un dispositivo en **Device Manager** y enciéndelo.
+2. Ejecuta `flutter devices` y usa el nombre que aparezca (normalmente `emulator-5554`).
+3. Opcional: en la configuración del dispositivo, **Camera → Back = Webcam0** permite usar la webcam de la computadora como cámara.
+
+> En Chrome de escritorio, el botón **Cámara** abre el explorador de archivos. Para usar la cámara, ejecuta la app en Android.
+
+**Celular físico (opcional):** la computadora y el celular deben estar en la misma red Wi-Fi.
+
+1. Enciende la API para toda la red: `uvicorn main:app --reload --host 0.0.0.0 --port 8000`. Si Windows pregunta por el firewall, permite el acceso en redes privadas.
+2. Busca la IP de la computadora con `ipconfig` (por ejemplo, `192.168.1.50`).
+3. Ejecuta la app indicando esa dirección:
+   ```powershell
+   flutter run --dart-define=API_URL=http://192.168.1.50:8000
+   ```
 
 ### 4. Componente web PHP (si se instala por separado)
 

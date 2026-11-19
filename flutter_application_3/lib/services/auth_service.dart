@@ -2,12 +2,13 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart'; // API ÚNICA
 import 'sesion.dart'; // SESIONES S3
 
 typedef JsonMap = Map<String, dynamic>;
 
 class AuthService {
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  static String get baseUrl => ApiConfig.baseUrl; // API ÚNICA
 
   String? validarLogin({required String usuario, required String password}) {
     if (usuario.trim().isEmpty || password.isEmpty) {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart'; // API ÚNICA
 import '../services/sesion.dart'; // SESIONES S7
 import '../widgets/admin_drawer.dart';
 
@@ -16,7 +17,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  static String get baseUrl => ApiConfig.baseUrl; // API ÚNICA
   final _formKey = GlobalKey<FormState>();
   final _nombre = TextEditingController();
   final _correo = TextEditingController();

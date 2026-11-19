@@ -1,8 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- API ÚNICA: la app necesita red para hablar con la API (FastAPI). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- usesCleartextTraffic: la API local usa http:// (sin HTTPS). Android 9 o
+         posterior lo bloquea si no se permite aquí. -->
     <application
         android:label="flutter_application_uteq"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
