@@ -2,7 +2,6 @@ class UserModel {
   final int id;
   final String nombre;
   final String correo;
-  final String? password;
   final String? direccion;
   final int tipoUsuario;
 
@@ -10,7 +9,6 @@ class UserModel {
     required this.id,
     required this.nombre,
     required this.correo,
-    this.password,
     this.direccion,
     this.tipoUsuario = 1,
   });
@@ -23,15 +21,5 @@ class UserModel {
       direccion: json['dir_usr'] as String?,
       tipoUsuario: json['tip_usu'] as int? ?? 1,
     );
-  }
-
-  Map<String, dynamic> toJsonCrear() {
-    return {
-      'nom_usr': nombre,
-      'mail': correo,
-      'password': password,
-      'dir_usr': direccion,
-      'tip_usu': tipoUsuario,
-    };
   }
 }

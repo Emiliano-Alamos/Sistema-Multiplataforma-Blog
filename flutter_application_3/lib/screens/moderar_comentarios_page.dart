@@ -7,10 +7,9 @@ import '../services/comentario_service.dart'; // MODERAR D6
 import '../theme/app_theme.dart'; // REDISEÑO
 
 class ModerarComentariosPage extends StatefulWidget {
-  final PostModel post; // AUTORIZADO MÓDULO EDITAR
-  final Map<String, dynamic>? usuario; // AUTORIZADO MÓDULO EDITAR
+  final PostModel post;
 
-  const ModerarComentariosPage({super.key, required this.post, this.usuario});
+  const ModerarComentariosPage({super.key, required this.post});
 
   @override
   State<ModerarComentariosPage> createState() => _ModerarComentariosPageState();

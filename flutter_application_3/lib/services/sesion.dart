@@ -14,8 +14,6 @@ class Sesion {
   // Llave para poder regresar al login desde un servicio, sin BuildContext.
   static final NavKey navegadorKey = NavKey();
 
-  static bool get activa => _token != null;
-
   // Se llama después de un inicio de sesión correcto.
   static void iniciar(String token) {
     _token = token;

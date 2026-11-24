@@ -341,7 +341,6 @@ def test_cors_expone_encabezado(c, admin):
 
 def test_usuario_general_permisos(c, admin, general, post_id):
     t = h(general["access_token"])
-    yo = general["usuario"]["id_usr"]
     assert c.get("/blog", headers=t).status_code == 200
     assert c.get(f"/blog/{post_id}", headers=t).status_code == 200
     assert c.get("/comentarios", headers=t).status_code == 200

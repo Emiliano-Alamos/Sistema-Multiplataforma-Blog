@@ -232,11 +232,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              settings: RouteSettings(arguments: widget.usuario ?? {}),
-              builder: (_) => ModerarComentariosPage(
-                post: widget.post,
-                usuario: widget.usuario,
-              ),
+              builder: (_) => ModerarComentariosPage(post: widget.post),
             ),
           );
         },

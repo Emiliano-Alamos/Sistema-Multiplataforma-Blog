@@ -30,24 +30,6 @@ class UserService {
     return datos.map((json) => UserModel.fromJson(json as JsonMap)).toList();
   }
 
-  Future<UserModel> agregarUsuario(UserModel usuario) async {
-    final respuesta = await http
-        .post(
-          Uri.parse('$baseUrl/usuarios'),
-          headers: Sesion.encabezados(), // SESIONES S4
-          body: jsonEncode(usuario.toJsonCrear()),
-        )
-        .timeout(const Duration(seconds: 10));
-
-    Sesion.revisar(respuesta); // SESIONES S4
-
-    if (respuesta.statusCode == 201) {
-      return UserModel.fromJson(jsonDecode(respuesta.body) as JsonMap);
-    }
-
-    throw Exception(_mensajeError(respuesta));
-  }
-
   Future<UserModel> actualizarUsuario(UserModel usuario) async {
     final respuesta = await http
         .put(
