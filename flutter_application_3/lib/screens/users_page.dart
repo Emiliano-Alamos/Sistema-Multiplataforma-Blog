@@ -16,7 +16,6 @@ class _UsersPageState extends State<UsersPage> {
 
   final nombreController = TextEditingController();
   final correoController = TextEditingController();
-  final passwordController = TextEditingController();
   final direccionController = TextEditingController();
 
   late Future<List<UserModel>> futuroUsuarios;
@@ -55,7 +54,6 @@ class _UsersPageState extends State<UsersPage> {
   void dispose() {
     nombreController.dispose();
     correoController.dispose();
-    passwordController.dispose();
     direccionController.dispose();
     super.dispose();
   }
@@ -73,13 +71,12 @@ class _UsersPageState extends State<UsersPage> {
         .showSnackBar(SnackBar(content: Text(mensaje)));
   }
 
-  Future<void> mostrarFormulario({UserModel? usuario}) async {
-    final esEdicion = usuario != null;
-
-    nombreController.text = usuario?.nombre ?? '';
-    correoController.text = usuario?.correo ?? '';
-    direccionController.text = usuario?.direccion ?? '';
-    passwordController.clear();
+  // Abre el diálogo para editar un usuario existente.
+  // Los usuarios nuevos se crean desde «Registrar usuario» (register_user_page.dart).
+  Future<void> mostrarFormulario({required UserModel usuario}) async {
+    nombreController.text = usuario.nombre;
+    correoController.text = usuario.correo;
+    direccionController.text = usuario.direccion ?? '';
 
     final resultado = await showDialog<bool>(
       context: context,
@@ -89,7 +86,7 @@ class _UsersPageState extends State<UsersPage> {
         return StatefulBuilder(
           builder: (contextDialogo, actualizarDialogo) {
             return AlertDialog(
-              title: Text(esEdicion ? 'Editar usuario' : 'Nuevo usuario'),
+              title: const Text('Editar usuario'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -113,15 +110,6 @@ class _UsersPageState extends State<UsersPage> {
                       controller: direccionController,
                       decoration: const InputDecoration(labelText: 'Dirección'),
                     ),
-                    const SizedBox(height: 20),
-                    if (!esEdicion)
-                      TextField(
-                        controller: passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Contraseña',
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -139,7 +127,6 @@ class _UsersPageState extends State<UsersPage> {
                           final nombre = nombreController.text.trim();
                           final correo = correoController.text.trim();
                           final direccion = direccionController.text.trim();
-                          final password = passwordController.text;
 
                           if (nombre.isEmpty || correo.isEmpty) {
                             ScaffoldMessenger.of(dialogContext).showSnackBar(
@@ -159,44 +146,20 @@ class _UsersPageState extends State<UsersPage> {
                             return;
                           }
 
-                          if (!esEdicion && password.length < 8) {
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'La contraseña debe tener al menos 8 caracteres',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
                           actualizarDialogo(() {
                             guardando = true;
                           });
 
                           try {
-                            if (esEdicion) {
-                              final actualizado = UserModel(
-                                id: usuario.id,
-                                nombre: nombre,
-                                correo: correo,
-                                direccion: direccion.isEmpty ? null : direccion,
-                                tipoUsuario: usuario.tipoUsuario,
-                              );
+                            final actualizado = UserModel(
+                              id: usuario.id,
+                              nombre: nombre,
+                              correo: correo,
+                              direccion: direccion.isEmpty ? null : direccion,
+                              tipoUsuario: usuario.tipoUsuario,
+                            );
 
-                              await userService.actualizarUsuario(actualizado);
-                            } else {
-                              final nuevo = UserModel(
-                                id: 0,
-                                nombre: nombre,
-                                correo: correo,
-                                password: password,
-                                direccion: direccion.isEmpty ? null : direccion,
-                                tipoUsuario: 1,
-                              );
-
-                              await userService.agregarUsuario(nuevo);
-                            }
+                            await userService.actualizarUsuario(actualizado);
 
                             if (!dialogContext.mounted) return;
 
@@ -213,7 +176,7 @@ class _UsersPageState extends State<UsersPage> {
                             });
                           }
                         },
-                  child: Text(esEdicion ? 'Actualizar' : 'Guardar'),
+                  child: const Text('Actualizar'),
                 ),
               ],
             );
@@ -224,12 +187,7 @@ class _UsersPageState extends State<UsersPage> {
 
     if (resultado == true && mounted) {
       recargarUsuarios();
-
-      mostrarMensaje(
-        esEdicion
-            ? 'Usuario actualizado correctamente'
-            : 'Usuario registrado correctamente',
-      );
+      mostrarMensaje('Usuario actualizado correctamente');
     }
   }
 
