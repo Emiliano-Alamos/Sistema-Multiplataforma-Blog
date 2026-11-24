@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Botón principal de ancho completo y 48 px de alto (login y registro).
 class PrimaryButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
@@ -8,7 +9,7 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // REDISEÑO: Alto 48, ancho completo y estilo heredado de elevatedButtonTheme (relleno primary, radio 8, sin forma de píldora)
+    // El color y la forma vienen del tema (elevatedButtonTheme).
     return SizedBox(
       width: double.infinity,
       height: 48,

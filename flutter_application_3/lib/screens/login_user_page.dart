@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-import '../theme/app_theme.dart'; // REDISEÑO
+import '../theme/app_theme.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/auth_card.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/primary_button.dart';
 
+/// Pantalla de inicio de sesión. Valida el formulario, llama a la API y
+/// manda al administrador al panel y al usuario general al blog.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -15,16 +17,18 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  // Guardan lo que el usuario escribe en cada campo.
   final TextEditingController usuarioController = TextEditingController();
 
   final TextEditingController passwordController = TextEditingController();
 
   final AuthService authService = AuthService();
 
-  bool ocultarPassword = true;
-  bool cargando = false;
+  bool ocultarPassword = true; // la contraseña se muestra como puntos
+  bool cargando = false; // true mientras se espera la respuesta de la API
 
   @override
+  // Libera los controladores al cerrar la pantalla.
   void dispose() {
     usuarioController.dispose();
     passwordController.dispose();
@@ -32,7 +36,9 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  /// Valida los campos, inicia sesión en la API y abre la pantalla según el rol.
   Future<void> iniciarSesion() async {
+    // 1. Validación local: evita ir a la API con campos vacíos.
     final mensaje = authService.validarLogin(
       usuario: usuarioController.text,
       password: passwordController.text,
@@ -49,6 +55,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      // 2. Inicio de sesión en la API; si es correcto, el token queda guardado.
       final usuario = await authService.autenticar(
         correo: usuarioController.text,
         password: passwordController.text,
@@ -56,6 +63,8 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
+      // 3. Según el rol: 1 = Administrador (panel), 2 = Usuario general (blog).
+      // pushNamedAndRemoveUntil borra el historial para que «atrás» no regrese al login.
       final int tipoUsuario = (usuario['tip_usu'] as num).toInt();
 
       if (tipoUsuario == 1) {
@@ -79,6 +88,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
+    // Muestra el mensaje de la API (por ejemplo, «Correo o contraseña incorrectos»).
     } catch (e) {
       if (!mounted) return;
 
@@ -96,20 +106,20 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme; // REDISEÑO
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       body: AuthBackground(
         child: SafeArea(
           child: Center(
-            // REDISEÑO: Scroll y margen exterior de 16 px para adaptabilidad en pantallas de 390 px y escalado de texto
+            // El scroll evita que el teclado o pantallas pequeñas corten el formulario.
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: AuthCard(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // REDISEÑO: Candado outlined en primaryDark dentro de círculo primaryTint (sustituye candado amarillo)
+                    // Ícono de candado dentro de un círculo.
                     Container(
                       width: 80,
                       height: 80,
@@ -124,10 +134,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // REDISEÑO: Título en oración con escala de título de pantalla (24 bold textPrimary)
                     Text('Iniciar sesión', style: textTheme.headlineSmall),
                     const SizedBox(height: 24),
-                    // REDISEÑO: Ícono outlined consistente con el mockup M1 y la sección 5 de la guía
                     CustomTextField(
                       controller: usuarioController,
                       label: 'Correo electrónico',
@@ -140,6 +148,7 @@ class _LoginPageState extends State<LoginPage> {
                       label: 'Contraseña',
                       prefixIcon: Icons.lock_outline,
                       obscureText: ocultarPassword,
+                      // Botón del ojo: muestra u oculta la contraseña.
                       suffixIcon: IconButton(
                         tooltip: ocultarPassword
                             ? 'Mostrar contraseña'
@@ -157,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // REDISEÑO: Textos del botón primario en oración según sección 5
+                    // Mientras se valida, el botón cambia de texto e ignora los toques.
                     PrimaryButton(
                       text: cargando ? 'Validando...' : 'Ingresar',
                       onPressed: cargando
@@ -167,7 +176,7 @@ class _LoginPageState extends State<LoginPage> {
                             },
                     ),
                     const SizedBox(height: 16),
-                    // REDISEÑO: Wrap con crossAxisAlignment centrado para evitar overflow con escalado de fuente (Sección 7)
+                    // Enlace al registro; Wrap evita que el texto se desborde con letra grande.
                     Wrap(
                       alignment: WrapAlignment.center,
                       crossAxisAlignment: WrapCrossAlignment.center,

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-// Tema unificado del proyecto (Guía de diseño v1.1): lo usan las pantallas de usuario
-// (login, registro, blog, detalle) y el panel de administrador.
-// REDISEÑO: Paleta de colores centralizada según Guía de diseño v1.1 (Sección 2)
+// Tema visual de toda la app. Las pantallas toman de aquí colores, tipografía
+// y estilos de controles, para que el diseño sea uniforme y se cambie en un solo lugar.
+
+/// Paleta de colores (tokens) del proyecto.
 class AppColors {
   AppColors._();
 
@@ -19,14 +20,16 @@ class AppColors {
   static const Color success = Color(0xFF1F845A);
 }
 
+/// Tema global de la app (Material 3).
 class AppTheme {
   AppTheme._();
 
-  // Alias de compatibilidad: algunas versiones del panel usaban AppTheme.tema
+  // Alias de light. Ninguna pantalla lo usa; se puede eliminar.
   static ThemeData get tema => light;
 
-  // REDISEÑO: Tema global Material 3 con tokens, tipografía y controles unificados
+  /// Tema claro que se aplica en main.dart.
   static ThemeData get light {
+    // Esquema de colores que usan los componentes de Material.
     const colorScheme = ColorScheme.light(
       primary: AppColors.primary,
       onPrimary: AppColors.surface,
@@ -46,15 +49,16 @@ class AppTheme {
       outlineVariant: AppColors.borderInput,
     );
 
+    // Estilos de texto (fuente Roboto).
     const textTheme = TextTheme(
-      // Título de detalle (28 bold según Sección 6)
+      // Título del detalle de una publicación (28 bold)
       headlineMedium: TextStyle(
         fontFamily: 'Roboto',
         fontSize: 28,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
-      // Título de pantalla (24 bold según Sección 3)
+      // Título de pantalla (24 bold)
       headlineSmall: TextStyle(
         fontFamily: 'Roboto',
         fontSize: 24,
@@ -68,14 +72,14 @@ class AppTheme {
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
-      // Título de tarjeta (18 semibold según Sección 3)
+      // Título de tarjeta (18 semibold)
       titleMedium: TextStyle(
         fontFamily: 'Roboto',
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      // Cuerpo (16 regular, interlineado 1.5 según Sección 3)
+      // Cuerpo (16 regular, interlineado 1.5)
       bodyLarge: TextStyle(
         fontFamily: 'Roboto',
         fontSize: 16,
@@ -83,7 +87,7 @@ class AppTheme {
         height: 1.5,
         color: AppColors.textPrimary,
       ),
-      // Secundario (14 regular según Sección 3)
+      // Texto secundario (14 regular)
       bodyMedium: TextStyle(
         fontFamily: 'Roboto',
         fontSize: 14,
@@ -97,7 +101,7 @@ class AppTheme {
         fontWeight: FontWeight.w400,
         color: AppColors.textSecondary,
       ),
-      // Etiqueta / tag (12 semibold según Sección 3)
+      // Etiqueta / tag (12 semibold)
       labelSmall: TextStyle(
         fontFamily: 'Roboto',
         fontSize: 12,
@@ -105,6 +109,7 @@ class AppTheme {
         letterSpacing: 0,
         color: AppColors.primaryDark,
       ),
+      // Texto de botones (16 semibold)
       labelLarge: TextStyle(
         fontFamily: 'Roboto',
         fontSize: 16,
@@ -113,6 +118,7 @@ class AppTheme {
       ),
     );
 
+    // Bordes de los campos de texto: normal, con foco, con error y con error y foco.
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
       borderSide: const BorderSide(color: AppColors.borderInput, width: 1),
@@ -139,6 +145,7 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.background,
       textTheme: textTheme,
+      // Barra superior azul con texto e íconos blancos.
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.surface,
@@ -154,6 +161,7 @@ class AppTheme {
           color: AppColors.surface,
         ),
       ),
+      // Estilo de todos los campos de texto.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
@@ -167,6 +175,7 @@ class AppTheme {
           fontSize: 14,
           color: AppColors.textSecondary,
         ),
+        // La etiqueta flotante cambia de color con el foco o el error.
         floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
           if (states.contains(WidgetState.error)) {
             return const TextStyle(
@@ -208,6 +217,7 @@ class AppTheme {
         errorBorder: errorInputBorder,
         focusedErrorBorder: focusedErrorInputBorder,
       ),
+      // Botones principales: relleno azul, 48 px de alto y radio 8.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -223,6 +233,7 @@ class AppTheme {
           ),
         ),
       ),
+      // Botones de texto (Cancelar, enlaces).
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primaryDark,
@@ -236,6 +247,7 @@ class AppTheme {
           ),
         ),
       ),
+      // Tarjetas blancas con borde y radio 12.
       cardTheme: CardThemeData(
         color: AppColors.surface,
         surfaceTintColor: AppColors.surface,
@@ -246,6 +258,7 @@ class AppTheme {
           side: const BorderSide(color: AppColors.border, width: 1),
         ),
       ),
+      // Chips de etiquetas y filtros.
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.primaryTint,
         selectedColor: AppColors.primaryTint,
@@ -259,6 +272,7 @@ class AppTheme {
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
+      // Mensajes temporales en la parte inferior.
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.textPrimary,
@@ -269,6 +283,7 @@ class AppTheme {
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
+      // Cuadros de diálogo (confirmaciones y formularios).
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: AppColors.surface,

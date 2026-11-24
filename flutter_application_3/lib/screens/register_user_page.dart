@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-import '../theme/app_theme.dart'; // REDISEÑO
+import '../theme/app_theme.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/auth_card.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/primary_button.dart';
 
+/// Pantalla de registro. Desde el login crea un Usuario general; desde el
+/// panel, el administrador además puede elegir el tipo de usuario.
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -23,12 +25,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final AuthService authService = AuthService();
 
+  // Datos del administrador si se abrió desde el panel (null = desde el login).
   Map<String, dynamic>? administradorActual;
-  bool argumentosLeidos = false;
-  bool registrando = false;
+  bool argumentosLeidos = false; // evita leer los argumentos más de una vez
+  bool registrando = false; // true mientras se espera la respuesta de la API
   int tipoUsuario = 2; // 1 = Administrador, 2 = Usuario general
 
   @override
+  // Lee los argumentos de la ruta para saber si entró un administrador.
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (argumentosLeidos) return;
@@ -42,6 +46,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   @override
+  // Libera los controladores al cerrar la pantalla.
   void dispose() {
     nombreController.dispose();
     correoController.dispose();
@@ -51,9 +56,11 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  /// Valida el formulario, registra al usuario en la API y limpia los campos.
   Future<void> registrarUsuario() async {
-    if (registrando) return;
+    if (registrando) return; // evita envíos dobles
 
+    // Validación local antes de llamar a la API.
     final mensaje = authService.validarRegistro(
       nombre: nombreController.text.trim(),
       correo: correoController.text.trim(),
@@ -79,7 +86,7 @@ class _RegisterPageState extends State<RegisterPage> {
         direccion: direccionController.text.trim().isEmpty
             ? null
             : direccionController.text.trim(),
-        // NUEVO: Desde inicio de sesion siempre se registra usuario general.
+        // Desde el login siempre se registra un Usuario general.
         tipoUsuario: administradorActual != null ? tipoUsuario : 2,
       );
 
@@ -111,7 +118,7 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // NUEVO: Regresar al panel conservando los datos del administrador.
+  /// Regresa al panel (conservando los datos del administrador) o al login.
   void volver() {
     if (administradorActual != null) {
       Navigator.pushReplacementNamed(
@@ -126,13 +133,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme; // REDISEÑO
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       body: AuthBackground(
         child: SafeArea(
           child: Center(
-            // REDISEÑO: Scroll adaptable en pantallas pequeñas con márgenes en múltiplos de 8
+            // El scroll evita que el teclado o pantallas pequeñas corten el formulario.
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               child: Center(
@@ -140,7 +147,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // REDISEÑO: Ícono outlined en primaryDark dentro de círculo primaryTint (Secciones 2 y 6)
+                      // Ícono dentro de un círculo.
                       Container(
                         width: 80,
                         height: 80,
@@ -155,7 +162,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // REDISEÑO: Título en oración para ambos modos con escala 24 bold textPrimary
+                      // El título cambia según quién registra.
                       Text(
                         administradorActual != null
                             ? 'Registrar usuario'
@@ -164,7 +171,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),
-                      // REDISEÑO: Íconos outlined en todos los campos según Sección 5 de la guía
                       CustomTextField(
                         controller: nombreController,
                         label: 'Nombre completo',
@@ -178,7 +184,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 16),
-                      // NUEVO: La direccion se guarda en la misma tabla usuario.
+                      // La dirección es opcional.
                       CustomTextField(
                         controller: direccionController,
                         label: 'Dirección (opcional)',
@@ -192,7 +198,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         obscureText: true,
                       ),
                       const SizedBox(height: 16),
-                      // NUEVO: Confirmar la contraseña para validarla correctamente.
+                      // Se pide dos veces para evitar errores de escritura.
                       CustomTextField(
                         controller: confirmarController,
                         label: 'Confirmar contraseña',
@@ -201,10 +207,9 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       if (administradorActual != null) ...[
                         const SizedBox(height: 16),
-                        // NUEVO: Solo en el panel se muestra el tipo de usuario.
-                        // REDISEÑO: Dropdown hereda borde y relleno de inputDecorationTheme con ícono outlined
+                        // El selector de tipo de usuario solo aparece para el administrador.
                         DropdownButtonFormField<int>(
-                          key: ValueKey(tipoUsuario), // REDISEÑO: se reconstruye si tipoUsuario cambia (también al limpiar)
+                          key: ValueKey(tipoUsuario), // se reconstruye si tipoUsuario cambia (también al limpiar)
                           initialValue: tipoUsuario,
                           decoration: const InputDecoration(
                             labelText: 'Tipo de usuario',
@@ -232,7 +237,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ],
                       const SizedBox(height: 24),
-                      // REDISEÑO: Textos del botón primario en oración según Sección 5
+                      // Mientras registra, el botón cambia de texto e ignora los toques.
                       PrimaryButton(
                         text: registrando ? 'Registrando...' : 'Registrarme',
                         onPressed: registrando ? () {} : registrarUsuario,

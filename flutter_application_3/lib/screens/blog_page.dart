@@ -2,21 +2,27 @@ import 'package:flutter/material.dart';
 
 import '../models/post_model.dart';
 import '../services/post_service.dart';
-import '../services/sesion.dart'; // SESIONES S8
-import '../theme/app_theme.dart'; // REDISEÑO
+import '../services/sesion.dart';
+import '../theme/app_theme.dart';
 import '../widgets/post_card.dart';
 import 'post_detail_page.dart';
 import '../widgets/admin_drawer.dart';
 
+// Alias cortos para tipos que se repiten.
 typedef PostList = List<PostModel>;
 typedef JsonMap = Map<String, dynamic>;
 
+/// Lista del blog con buscador y filtro por etiqueta.
+/// - Usuario general: lee publicaciones y abre su detalle.
+/// - Administrador: además filtra «Todas / Mis publicaciones».
+/// - modoEdicion (ruta /edit-blogs): el administrador abre cada publicación
+///   para editarla o moderar sus comentarios.
 class BlogPage extends StatefulWidget {
-  final bool modoEdicion; // AUTORIZADO MÓDULO EDITAR
+  final bool modoEdicion;
 
   const BlogPage({
     super.key,
-    this.modoEdicion = false, // AUTORIZADO MÓDULO EDITAR
+    this.modoEdicion = false,
   });
 
   @override
@@ -25,18 +31,20 @@ class BlogPage extends StatefulWidget {
 
 class _BlogPageState extends State<BlogPage> {
   final PostService postService = PostService();
-  late Future<PostList> futurePosts;
-  late Future<List<String>> futureEtiquetas;
+  late Future<PostList> futurePosts; // consulta de publicaciones en curso
+  late Future<List<String>> futureEtiquetas; // etiquetas para el selector
   String nombreUsuario = 'Usuario';
+  // Usuario con sesión (llega como argumento de la ruta).
   JsonMap usuarioActual = {'nom_usr': 'Usuario', 'mail': '', 'tip_usu': 2};
   bool argumentoLeido = false;
-  bool soloMias = false; // AUTOR E4
-  // AUTORIZADO BUSCADOR: texto escrito y filtros aplicados
+  bool soloMias = false; // filtro «Mis publicaciones» del administrador
+  // Texto escrito en el buscador y filtros que ya se aplicaron.
   final TextEditingController buscarController = TextEditingController();
   String busquedaAplicada = '';
   String etiquetaFiltro = ''; // '' = todas las etiquetas
 
   @override
+  // Lee una sola vez los datos del usuario que llegan con la ruta.
   void didChangeDependencies() {
     super.didChangeDependencies();
 
@@ -56,14 +64,15 @@ class _BlogPageState extends State<BlogPage> {
   }
 
   @override
+  // Al abrir la pantalla se piden las publicaciones y las etiquetas.
   void initState() {
     super.initState();
-    futurePosts = consultarPosts(); // AUTORIZADO BUSCADOR
+    futurePosts = consultarPosts();
     futureEtiquetas = obtenerEtiquetas();
   }
 
-  // AUTORIZADO BUSCADOR: consulta siempre con los filtros aplicados. Así, el
-  // botón Actualizar y el regreso desde Editar conservan la búsqueda.
+  /// Consulta las publicaciones con los filtros aplicados. Así, el
+  /// botón Actualizar y el regreso desde Editar conservan la búsqueda.
   Future<PostList> consultarPosts() {
     return postService.obtenerPosts(
       q: busquedaAplicada,
@@ -71,7 +80,8 @@ class _BlogPageState extends State<BlogPage> {
     );
   }
 
-  // Obtenemos las etiquetas reales de todas las publicaciones de MySQL.
+  /// Arma la lista de etiquetas a partir de las publicaciones guardadas,
+  /// sin repetir (sin distinguir mayúsculas) y en orden alfabético.
   Future<List<String>> obtenerEtiquetas() async {
     final posts = await postService.obtenerPosts();
     final etiquetas = <String, String>{};
@@ -89,6 +99,7 @@ class _BlogPageState extends State<BlogPage> {
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
 
+  /// Vuelve a consultar publicaciones y etiquetas (botón Actualizar).
   void recargarPosts() {
     setState(() {
       futurePosts = consultarPosts();
@@ -96,7 +107,7 @@ class _BlogPageState extends State<BlogPage> {
     });
   }
 
-  // AUTORIZADO BUSCADOR: aplica el texto escrito (Enter o botón Buscar).
+  /// Aplica el texto escrito (Enter o botón Buscar).
   void buscar() {
     setState(() {
       busquedaAplicada = buscarController.text.trim();
@@ -104,7 +115,7 @@ class _BlogPageState extends State<BlogPage> {
     });
   }
 
-  // AUTORIZADO BUSCADOR: la etiqueta se aplica en cuanto se elige.
+  /// La etiqueta se aplica en cuanto se elige.
   void cambiarEtiqueta(String? valor) {
     setState(() {
       etiquetaFiltro = valor ?? '';
@@ -112,7 +123,7 @@ class _BlogPageState extends State<BlogPage> {
     });
   }
 
-  // AUTORIZADO BUSCADOR: quita texto y etiqueta y vuelve a la lista completa.
+  /// Quita texto y etiqueta y vuelve a la lista completa.
   void limpiarFiltros() {
     buscarController.clear();
     setState(() {
@@ -122,19 +133,18 @@ class _BlogPageState extends State<BlogPage> {
     });
   }
 
-  // AUTORIZADO BUSCADOR
   bool get hayFiltros =>
       busquedaAplicada.isNotEmpty || etiquetaFiltro.isNotEmpty;
 
-  // AUTORIZADO BUSCADOR: libera el controlador del campo de búsqueda.
+  // Libera el controlador del campo de búsqueda.
   @override
   void dispose() {
     buscarController.dispose();
     super.dispose();
   }
 
-  // EDITAR D5: abre el detalle en modo administrador y, si al volver hubo
-  // cambios (true), recarga la lista.
+  /// Abre el detalle en modo administrador y, si al volver hubo
+  /// cambios (true), recarga la lista.
   Future<void> _abrirDetalleEdicion(PostModel post) async {
     final cambio = await Navigator.push<bool>(
       context,
@@ -150,7 +160,7 @@ class _BlogPageState extends State<BlogPage> {
     }
   }
 
-  // LÓGICA AUTORIZADA 2
+  /// Iniciales del usuario para el menú: «Ana López» → «AL».
   String _obtenerIniciales(String nombre) {
     final partes = nombre
         .trim()
@@ -166,15 +176,15 @@ class _BlogPageState extends State<BlogPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme; // REDISEÑO
-    final colorScheme = Theme.of(context).colorScheme; // REDISEÑO
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final esAdmin = (usuarioActual['tip_usu'] as num? ?? 2).toInt() == 1;
-    final idUsuario = (usuarioActual['id_usr'] as num?)?.toInt(); // AUTOR E4
+    final idUsuario = (usuarioActual['id_usr'] as num?)?.toInt();
     final correoUsuario = usuarioActual['mail']?.toString() ?? '';
     final iniciales = _obtenerIniciales(nombreUsuario);
-    final enEdicion = widget.modoEdicion; // AUTORIZADO MÓDULO EDITAR
+    final enEdicion = widget.modoEdicion;
 
-    // AUTORIZADO BUSCADOR: Controles del bloque de filtros (Secciones 4.2 y 4.3)
+    // Campo de búsqueda: busca al presionar Enter o la lupa.
     final campoBusqueda = TextField(
       controller: buscarController,
       maxLength: 100,
@@ -192,7 +202,7 @@ class _BlogPageState extends State<BlogPage> {
       ),
     );
 
-    // Mostramos en el selector las etiquetas existentes en MySQL.
+    // Selector de etiqueta con las etiquetas existentes en MySQL.
     final selectorEtiqueta = FutureBuilder<List<String>>(
       future: futureEtiquetas,
       builder: (context, snapshot) {
@@ -228,7 +238,7 @@ class _BlogPageState extends State<BlogPage> {
 
     return Scaffold(
       appBar: AppBar(
-        // AUTORIZADO MÓDULO EDITAR: Título «Editar publicaciones» en modoEdicion
+        // El título cambia en modo edición.
         title: enEdicion
             ? const Text('Editar publicaciones')
             : Column(
@@ -252,8 +262,7 @@ class _BlogPageState extends State<BlogPage> {
             icon: const Icon(Icons.refresh_outlined),
             onPressed: recargarPosts,
           ),
-          // LÓGICA AUTORIZADA 2
-          // AUTORIZADO MÓDULO EDITAR: Sin menú de usuario cuando modoEdicion es true
+          // Menú del usuario general (cerrar sesión). El administrador usa el menú lateral.
           if (!esAdmin && !enEdicion)
             PopupMenuButton<String>(
               tooltip: 'Menú de usuario',
@@ -266,7 +275,7 @@ class _BlogPageState extends State<BlogPage> {
               ),
               onSelected: (valor) {
                 if (valor == 'logout') {
-                  Sesion.cerrar(); // SESIONES S8
+                  Sesion.cerrar();
                   Navigator.pushNamedAndRemoveUntil(
                     context,
                     '/login',
@@ -374,13 +383,13 @@ class _BlogPageState extends State<BlogPage> {
             ),
         ],
       ),
-      // AUTORIZADO MÓDULO EDITAR: AdminDrawer con rutaActual '/edit-blogs' en modoEdicion
+      // Menú lateral solo para el administrador.
       drawer: enEdicion
           ? AdminDrawer(usuario: usuarioActual, rutaActual: '/edit-blogs')
           : (esAdmin
                 ? AdminDrawer(usuario: usuarioActual, rutaActual: '/blog')
                 : null),
-      // AUTORIZADO BUSCADOR: Estructura del body con filtros fijos en el ListView y FutureBuilder al final (Sección 3.3)
+      // Contenido centrado con ancho máximo: encabezado, filtros y, al final, la lista.
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -388,7 +397,7 @@ class _BlogPageState extends State<BlogPage> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // AUTORIZADO MÓDULO EDITAR: Encabezado y subtítulo según sección 2.2 del Anexo
+              // Encabezado y subtítulo según el modo.
               Text(
                 enEdicion ? 'Editar publicaciones' : 'Bienvenido',
                 style: textTheme.headlineSmall,
@@ -403,7 +412,7 @@ class _BlogPageState extends State<BlogPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              // AUTORIZADO BUSCADOR: Bloque de filtros responsivo (Sección 4.1)
+              // Filtros: en fila en pantallas anchas, uno sobre otro en el celular.
               LayoutBuilder(
                 builder: (context, constraints) {
                   if (constraints.maxWidth >= 600) {
@@ -427,7 +436,7 @@ class _BlogPageState extends State<BlogPage> {
                 },
               ),
               const SizedBox(height: 16),
-              // AUTOR E4: Filtro «Todas / Mis publicaciones» visible solo para administrador
+              // Filtro «Todas / Mis publicaciones», solo para el administrador.
               if (esAdmin) ...[
                 Wrap(
                   spacing: 8,
@@ -455,16 +464,16 @@ class _BlogPageState extends State<BlogPage> {
                 ),
                 const SizedBox(height: 16),
               ],
-              // AUTORIZADO BUSCADOR: FutureBuilder como último hijo del ListView (Secciones 3.3 y 4.5)
+              // FutureBuilder redibuja la lista según la consulta: cargando, error o datos.
               FutureBuilder<PostList>(
                 future: futurePosts,
                 builder: (context, snapshot) {
-                  // REDISEÑO: Estado de carga con indicador tintado y 48 px de margen vertical
+                  // Cargando.
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(
                         vertical: 48,
-                      ), // AUTORIZADO BUSCADOR
+                      ),
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -483,12 +492,12 @@ class _BlogPageState extends State<BlogPage> {
                     );
                   }
 
-                  // REDISEÑO: Estado de error con ícono en círculo tintado y 32 px de margen vertical
+                  // Error: muestra el mensaje y un botón para reintentar.
                   if (snapshot.hasError) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(
                         vertical: 32,
-                      ), // AUTORIZADO BUSCADOR
+                      ),
                       child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 400),
@@ -533,16 +542,16 @@ class _BlogPageState extends State<BlogPage> {
                   }
 
                   final posts = snapshot.data ?? <PostModel>[];
-                  // AUTOR E4: publicaciones propias = las que tienen mi id como autor.
+                  // Publicaciones propias = las que tienen mi id como autor.
                   final visibles = soloMias
                       ? posts.where((p) => p.usuarioId == idUsuario).toList()
                       : posts;
-                  // AUTORIZADO BUSCADOR: texto del contador
+                  // Texto del contador de resultados.
                   final textoContador = visibles.length == 1
                       ? '1 publicación encontrada'
                       : '${visibles.length} publicaciones encontradas';
 
-                  // Condición #1: sin publicaciones registradas y sin filtros activos
+                  // Caso 1: no hay publicaciones y no hay filtros activos.
                   if (posts.isEmpty && !hayFiltros) {
                     return Padding(
                       padding: const EdgeInsets.all(24),
@@ -575,7 +584,7 @@ class _BlogPageState extends State<BlogPage> {
                     );
                   }
 
-                  // AUTORIZADO BUSCADOR: Condición #2: sin resultados con filtros activos (Sección 4.5)
+                  // Caso 2: los filtros no encontraron resultados.
                   if (visibles.isEmpty && hayFiltros) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
@@ -623,7 +632,7 @@ class _BlogPageState extends State<BlogPage> {
                     );
                   }
 
-                  // Condición #3: sin publicaciones propias del administrador
+                  // Caso 3: el administrador no tiene publicaciones propias.
                   if (visibles.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
@@ -654,7 +663,7 @@ class _BlogPageState extends State<BlogPage> {
                     );
                   }
 
-                  // AUTORIZADO BUSCADOR: Condición #4: resultados con fila de contador opcional (Sección 4.4)
+                  // Caso 4: hay resultados; con filtros se muestra el contador.
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -681,7 +690,7 @@ class _BlogPageState extends State<BlogPage> {
                       ...visibles.map(
                         (post) => Padding(
                           padding: const EdgeInsets.only(bottom: 16),
-                          // AUTORIZADO MÓDULO EDITAR: PostCard con 'Ver publicación' y navegación con modoAdmin en modoEdicion
+                          // En modo edición abre el detalle de administrador; si no, el detalle normal.
                           child: PostCard(
                             post: post,
                             textoBoton: enEdicion

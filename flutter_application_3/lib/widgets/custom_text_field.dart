@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+/// Campo de texto con ícono, reutilizado en login y registro.
+/// El borde y los colores vienen del tema (inputDecorationTheme).
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData prefixIcon;
-  final bool obscureText;
-  final Widget? suffixIcon;
+  final bool obscureText; // true para ocultar contraseñas
+  final Widget? suffixIcon; // por ejemplo, el botón para mostrar la contraseña
   final TextInputType keyboardType;
 
   const CustomTextField({
@@ -24,7 +26,6 @@ class CustomTextField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      // REDISEÑO: Borde (radio 8, borderInput 1 px / primary 2 px), relleno blanco e íconos heredados de inputDecorationTheme
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(prefixIcon),

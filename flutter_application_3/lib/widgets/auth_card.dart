@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Tarjeta blanca que contiene los formularios de inicio de sesión y registro.
 class AuthCard extends StatelessWidget {
   final Widget child;
 
@@ -7,7 +8,7 @@ class AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // REDISEÑO: Ancho máximo 400 adaptable a pantallas angostas y tarjeta heredada del tema (radio 12, borde y elevación 1)
+    // Máximo 400 px de ancho, para que se vea bien en pantallas grandes y angostas.
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 400),
       child: Card(

@@ -1,6 +1,9 @@
 import '../services/post_service.dart';
 
-// Preparamos la dirección de las imágenes del blog
+/// Convierte la ruta de imagen guardada en la base (/uploads/foto.jpg)
+/// en una dirección completa que la app puede cargar
+/// (http://127.0.0.1:8000/uploads/foto.jpg). Corrige también las barras
+/// invertidas de Windows.
 String urlImagen(String ruta) {
   final limpia = ruta.trim().replaceAll('\\', '/');
 

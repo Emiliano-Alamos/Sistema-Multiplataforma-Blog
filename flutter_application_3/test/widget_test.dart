@@ -10,7 +10,7 @@ void main() {
     await tester.pumpWidget(const LoginApp());
     await tester.pumpAndSettle();
 
-    // REDISEÑO: Verifica que LoginApp cargó correctamente y muestra el título en oración de LoginPage
+    // Verifica que LoginApp cargó y que se ve el título de la pantalla de login.
     expect(find.byType(LoginApp), findsOneWidget);
     expect(find.text('Iniciar sesión'), findsOneWidget);
   });

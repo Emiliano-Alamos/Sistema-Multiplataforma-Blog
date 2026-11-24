@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Fondo azul de las pantallas de inicio de sesión y registro.
 class AuthBackground extends StatelessWidget {
   final Widget child;
 
@@ -7,7 +8,7 @@ class AuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // REDISEÑO: Fondo sólido primary del tema en lugar del degradado (Guía secciones 2 y 6)
+    // Color primario del tema.
     return Container(
       color: Theme.of(context).colorScheme.primary,
       child: child,

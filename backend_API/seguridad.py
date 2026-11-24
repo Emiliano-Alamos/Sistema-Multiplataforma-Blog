@@ -44,8 +44,10 @@ if len(JWT_SECRET) < 32:
         "Revisa .env.example para ver cómo generarla."
     )
 
+# HS256: el mismo servidor firma y comprueba los tokens con una sola clave.
 ALGORITMO = "HS256"
 
+# Reglas de tiempo de la sesión (ver encabezado del archivo).
 MINUTOS_INACTIVIDAD = 30
 HORAS_TOPE = 8
 
@@ -146,7 +148,7 @@ def usuario_desde_token(token: str, respuesta: Response, db: Session) -> Usuario
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # RENOVACIÓN POR ACTIVIDAD: como el usuario acaba de hacer una petición,
+    # Renovación por actividad: como el usuario acaba de hacer una petición,
     # se le entrega un token nuevo con otros 30 minutos. Se conserva el mismo
     # "inicio", por eso el tope de 8 horas no se mueve.
     respuesta.headers[ENCABEZADO_TOKEN_RENOVADO] = crear_token(id_usr, inicio)

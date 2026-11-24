@@ -3,17 +3,20 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-import '../config/api_config.dart'; // API ÚNICA
+import '../config/api_config.dart';
 import '../models/post_model.dart';
-import 'sesion.dart'; // SESIONES S5
+import 'sesion.dart';
 
 typedef PostList = List<PostModel>;
 typedef JsonMap = Map<String, dynamic>;
 
+/// Servicio de publicaciones: crear, consultar, editar y eliminar,
+/// con o sin fotografía.
 class PostService {
-  static String get baseUrl => ApiConfig.baseUrl; // API ÚNICA
+  /// Dirección de la API, tomada de la configuración central.
+  static String get baseUrl => ApiConfig.baseUrl;
 
-  // GUARDAR PUBLICACION CON JSON
+  /// Crea una publicación sin fotografía (POST /blog, datos en JSON).
   Future<PostModel> agregarPost({
     required String titulo,
     required String descripcion,
@@ -23,7 +26,7 @@ class PostService {
     final respuesta = await http
         .post(
           Uri.parse('$baseUrl/blog'),
-          headers: Sesion.encabezados(), // SESIONES S5
+          headers: Sesion.encabezados(), // incluye el token de la sesión
           body: jsonEncode({
             'titulo': titulo.trim(),
             'descripcion': descripcion.trim(),
@@ -31,9 +34,9 @@ class PostService {
             'tags': (tags ?? '').trim().isEmpty ? null : tags!.trim(),
           }),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 10)); // evita esperar indefinidamente
 
-    Sesion.revisar(respuesta); // SESIONES S5
+    Sesion.revisar(respuesta); // renueva el token o manda al login si venció
 
     final dynamic resultado = respuesta.body.isNotEmpty
         ? jsonDecode(respuesta.body)
@@ -53,13 +56,14 @@ class PostService {
     );
   }
 
-  // ENVIAR PUBLICACION CON FOTOGRAFIA
+  /// Crea una publicación con fotografía (POST /blog/foto).
+  /// Usa multipart porque un archivo no puede enviarse dentro de JSON.
   Future<void> agregarPostConFoto({
     required String titulo,
     required String descripcion,
     required Uint8List imagenBytes,
     required String nombreArchivo,
-    String? tags, // CORRECCIÓN TAGS
+    String? tags,
   }) async {
     final peticion =
         http.MultipartRequest('POST', Uri.parse('$baseUrl/blog/foto'))
@@ -73,17 +77,18 @@ class PostService {
             ),
           );
 
-    // CORRECCIÓN TAGS
+    // La etiqueta solo se envía si tiene texto.
     if ((tags ?? '').trim().isNotEmpty) {
       peticion.fields['tags'] = tags!.trim();
     }
 
-    // SESIONES S5: en multipart no se envía Content-Type manual.
+    // En multipart no se envía Content-Type manual: lo arma el paquete http.
     peticion.headers.addAll(Sesion.encabezados(json: false));
 
+    // Envía la petición y convierte la respuesta en un http.Response normal.
     final respuesta = await http.Response.fromStream(await peticion.send());
 
-    Sesion.revisar(respuesta); // SESIONES S5
+    Sesion.revisar(respuesta);
 
     if (respuesta.statusCode != 200) {
       throw Exception(
@@ -92,9 +97,8 @@ class PostService {
     }
   }
 
-  // CONSULTAR PUBLICACIONES
-  // AUTORIZADO BUSCADOR: q y etiqueta son opcionales. Si llegan vacíos, la
-  // petición es la misma de antes (GET /blog sin parámetros).
+  /// Consulta las publicaciones (GET /blog). q (texto) y etiqueta son
+  /// opcionales: solo se agregan a la URL si tienen valor.
   Future<PostList> obtenerPosts({String q = '', String etiqueta = ''}) async {
     final parametros = <String, String>{};
     if (q.trim().isNotEmpty) {
@@ -107,11 +111,11 @@ class PostService {
     final respuesta = await http.get(
       Uri.parse('$baseUrl/blog').replace(
         queryParameters: parametros.isEmpty ? null : parametros,
-      ), // AUTORIZADO BUSCADOR
-      headers: Sesion.encabezados(), // SESIONES S5
+      ),
+      headers: Sesion.encabezados(),
     );
 
-    Sesion.revisar(respuesta); // SESIONES S5
+    Sesion.revisar(respuesta);
 
     if (respuesta.statusCode != 200) {
       throw Exception('Error al consultar publicaciones');
@@ -122,7 +126,7 @@ class PostService {
     return datos.map((json) => PostModel.fromJson(json as JsonMap)).toList();
   }
 
-  // EDITAR D1: actualiza una publicación con JSON (sin fotografía nueva).
+  /// Actualiza una publicación con JSON, sin fotografía nueva (PUT /blog/{id}).
   Future<PostModel> actualizarPost({
     required int id,
     required String titulo,
@@ -154,7 +158,7 @@ class PostService {
     throw Exception(_mensajeErrorEdicion(respuesta));
   }
 
-  // EDITAR D1: actualiza una publicación y le pone una fotografía nueva.
+  /// Actualiza una publicación y le pone una fotografía nueva (PUT /blog/{id}/foto).
   Future<PostModel> actualizarPostConFoto({
     required int id,
     required String titulo,
@@ -195,7 +199,7 @@ class PostService {
     throw Exception(_mensajeErrorEdicion(respuesta));
   }
 
-  // Toma el mensaje que manda la API ("detail") cuando es un texto.
+  /// Toma el mensaje que manda la API ("detail") cuando es un texto.
   String _mensajeErrorEdicion(http.Response respuesta) {
     try {
       final dynamic datos = jsonDecode(respuesta.body);
@@ -210,7 +214,7 @@ class PostService {
     return 'No se pudo guardar la publicación (HTTP ${respuesta.statusCode}).';
   }
 
-  // ELIMINAR D7: elimina una publicación y sus comentarios (solo administrador).
+  /// Elimina una publicación y sus comentarios (solo administrador).
   Future<void> eliminarPost(int id) async {
     final respuesta = await http
         .delete(Uri.parse('$baseUrl/blog/$id'), headers: Sesion.encabezados())

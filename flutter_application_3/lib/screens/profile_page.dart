@@ -3,12 +3,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../config/api_config.dart'; // API ÚNICA
-import '../services/sesion.dart'; // SESIONES S7
+import '../config/api_config.dart';
+import '../services/sesion.dart';
 import '../widgets/admin_drawer.dart';
 
 typedef JsonMap = Map<String, dynamic>;
 
+/// Pantalla «Mi perfil» del administrador: edita su nombre, correo y dirección.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -17,16 +18,18 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static String get baseUrl => ApiConfig.baseUrl; // API ÚNICA
+  static String get baseUrl => ApiConfig.baseUrl;
+  // Llave del formulario para ejecutar sus validaciones.
   final _formKey = GlobalKey<FormState>();
   final _nombre = TextEditingController();
   final _correo = TextEditingController();
   final _direccion = TextEditingController();
-  JsonMap _usuario = {};
-  bool _cargando = false;
-  bool _inicializado = false;
+  JsonMap _usuario = {}; // datos del usuario que inició sesión
+  bool _cargando = false; // true mientras se guarda
+  bool _inicializado = false; // evita recargar los campos más de una vez
 
   @override
+  // Recibe los datos del usuario como argumento de la ruta y llena los campos.
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_inicializado) return;
@@ -41,6 +44,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   @override
+  // Libera los controladores al cerrar la pantalla.
   void dispose() {
     _nombre.dispose();
     _correo.dispose();
@@ -48,6 +52,7 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  /// Valida el formulario y envía los cambios a la API (PUT /usuarios/{id}).
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     final id = _usuario['id_usr'];
@@ -63,10 +68,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     setState(() => _cargando = true);
     try {
+      // El rol se envía igual que estaba: el perfil no cambia el tipo de usuario.
       final response = await http
           .put(
             Uri.parse('$baseUrl/usuarios/$id'),
-            headers: Sesion.encabezados(), // SESIONES S7
+            headers: Sesion.encabezados(),
             body: jsonEncode({
               'nom_usr': _nombre.text.trim(),
               'mail': _correo.text.trim().toLowerCase(),
@@ -78,7 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
           )
           .timeout(const Duration(seconds: 10));
 
-      Sesion.revisar(response); // SESIONES S7
+      Sesion.revisar(response); // renueva el token o manda al login si venció
 
       final dynamic data = response.body.isNotEmpty
           ? jsonDecode(response.body)
@@ -89,7 +95,7 @@ class _ProfilePageState extends State<ProfilePage> {
           detail?.toString() ?? 'Error HTTP ${response.statusCode}',
         );
       }
-      if (data is JsonMap) _usuario = JsonMap.from(data);
+      if (data is JsonMap) _usuario = JsonMap.from(data); // guarda los datos actualizados
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Perfil actualizado correctamente')),
@@ -131,7 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Avatar decorativo del administrador.
+                      // Avatar decorativo.
                       Center(
                         child: CircleAvatar(
                           radius: 48,
@@ -186,7 +192,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Los tres campos y sus validaciones son los originales.
+                      // Campos del formulario con sus validaciones.
                       Text(
                         'Nombre completo',
                         style: tema.textTheme.bodyMedium?.copyWith(
@@ -240,7 +246,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Se conserva la función _guardar() del proyecto.
+                      // Botón de guardar; se deshabilita mientras se guarda.
                       ElevatedButton.icon(
                         onPressed: _cargando ? null : _guardar,
                         icon: const Icon(Icons.save_outlined),

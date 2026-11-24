@@ -2,15 +2,17 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../config/api_config.dart'; // API ÚNICA
+import '../config/api_config.dart';
 import '../models/comentario_model.dart';
 import 'sesion.dart';
 
+/// Servicio de comentarios: leer, crear, moderar y eliminar.
 class ComentarioService {
-  static String get baseUrl => ApiConfig.baseUrl; // API ÚNICA
+  /// Dirección de la API, tomada de la configuración central.
+  static String get baseUrl => ApiConfig.baseUrl;
 
-  // COMENTARIOS C2: comentarios visibles de UNA publicación,
-  // del más reciente al más antiguo.
+  /// Comentarios visibles de UNA publicación,
+  /// del más reciente al más antiguo.
   Future<List<ComentarioModel>> obtenerComentarios(int blogId) async {
     final respuesta = await http
         .get(
@@ -32,8 +34,8 @@ class ComentarioService {
         .toList();
   }
 
-  // COMENTARIOS C2: crea un comentario. No se envía el usuario: la API
-  // lo toma del token de la sesión.
+  /// Crea un comentario. No se envía el usuario: la API
+  /// lo toma del token de la sesión.
   Future<ComentarioModel> agregarComentario({
     required int blogId,
     required String texto,
@@ -57,7 +59,7 @@ class ComentarioService {
     throw Exception(_mensajeError(respuesta));
   }
 
-  // Toma el mensaje que manda la API ("detail") cuando es un texto.
+  /// Toma el mensaje que manda la API ("detail") cuando es un texto.
   String _mensajeError(http.Response respuesta) {
     try {
       final dynamic datos = jsonDecode(respuesta.body);
@@ -72,7 +74,7 @@ class ComentarioService {
     return 'No se pudo publicar el comentario (HTTP ${respuesta.statusCode}).';
   }
 
-  // MODERAR D2: TODOS los comentarios de una publicación (solo administrador).
+  /// TODOS los comentarios de una publicación, para moderarlos (solo administrador).
   Future<List<ComentarioModel>> obtenerParaModerar(int blogId) async {
     final respuesta = await http
         .get(
@@ -94,7 +96,7 @@ class ComentarioService {
         .toList();
   }
 
-  // MODERAR D2: elimina un comentario de forma definitiva.
+  /// Elimina un comentario de forma definitiva (solo administrador).
   Future<void> eliminarComentario(int id) async {
     final respuesta = await http
         .delete(

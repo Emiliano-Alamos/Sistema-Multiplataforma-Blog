@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
 
-import '../models/comentario_model.dart'; // COMENTARIOS C3
+import '../models/comentario_model.dart';
 import '../models/post_model.dart';
-import '../services/comentario_service.dart'; // COMENTARIOS C3
-import '../theme/app_theme.dart'; // REDISEÑO
-import '../utils/image_url.dart'; // LÓGICA AUTORIZADA 1
-import 'add_blog_page.dart'; // AUTORIZADO MÓDULO EDITAR
-import 'moderar_comentarios_page.dart'; // AUTORIZADO MÓDULO EDITAR
+import '../services/comentario_service.dart';
+import '../theme/app_theme.dart';
+import '../utils/image_url.dart';
+import 'add_blog_page.dart';
+import 'moderar_comentarios_page.dart';
 
-// COMENTARIOS C3: De StatelessWidget a StatefulWidget conservando el mismo constructor
+/// Detalle de una publicación.
+/// - Modo normal: muestra la publicación y sus comentarios, y permite comentar.
+/// - Modo administrador (modoAdmin): muestra los botones «Editar publicación»
+///   y «Moderar comentarios» en lugar de los comentarios.
 class PostDetailPage extends StatefulWidget {
   final PostModel post;
-  final bool modoAdmin; // AUTORIZADO MÓDULO EDITAR
-  final Map<String, dynamic>? usuario; // AUTORIZADO MÓDULO EDITAR
+  final bool modoAdmin;
+  final Map<String, dynamic>? usuario; // usuario con sesión, para pasarlo a Editar
 
   const PostDetailPage({
     super.key,
     required this.post,
-    this.modoAdmin = false, // AUTORIZADO MÓDULO EDITAR
-    this.usuario, // AUTORIZADO MÓDULO EDITAR
+    this.modoAdmin = false,
+    this.usuario,
   });
 
   @override
@@ -26,13 +29,13 @@ class PostDetailPage extends StatefulWidget {
 }
 
 class _PostDetailPageState extends State<PostDetailPage> {
-  // COMENTARIOS C3
   final ComentarioService comentarioService = ComentarioService();
   final TextEditingController _textoComentario = TextEditingController();
-  Future<List<ComentarioModel>>? futureComentarios;
-  bool _enviando = false;
+  Future<List<ComentarioModel>>? futureComentarios; // consulta de comentarios
+  bool _enviando = false; // true mientras se publica un comentario
 
   @override
+  // Al abrir la pantalla se piden los comentarios (solo en modo normal).
   void initState() {
     super.initState();
 
@@ -43,18 +46,21 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   @override
+  // Libera el controlador del campo de comentario.
   void dispose() {
     _textoComentario.dispose();
     super.dispose();
   }
 
+  /// Vuelve a consultar los comentarios; setState redibuja la pantalla.
   void _recargarComentarios() {
     setState(() {
       futureComentarios = comentarioService.obtenerComentarios(widget.post.id);
     });
   }
 
-  // COMENTARIOS C3: envía el comentario a la API.
+  /// Valida el texto, envía el comentario a la API, cierra el diálogo y
+  /// recarga la lista. El autor lo pone la API a partir del token.
   Future<void> _publicarComentario(BuildContext dialogContext) async {
     // Evita que un doble toque publique el comentario dos veces.
     if (_enviando) return;
@@ -99,7 +105,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
-  // REDISEÑO: Placeholder discreto con fondo primaryTint para imagen ausente o fallida (Sección 6)
+  /// Recuadro con ícono que se muestra si no hay imagen o no se pudo cargar.
   Widget _buildPlaceholder() {
     return Container(
       color: AppColors.primaryTint,
@@ -113,10 +119,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
     );
   }
 
-  // REDISEÑO: Diálogo para agregar comentario con estilo del tema y ancho máx. 400 px
+  /// Abre el diálogo para escribir un comentario.
   void _mostrarFormularioComentario(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    // COMENTARIOS C3: limpia el campo al abrir el diálogo
+    // Limpia el campo al abrir el diálogo.
     _textoComentario.clear();
 
     showDialog(
@@ -162,7 +168,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // COMENTARIOS C3: TextField conectado a _textoComentario y con maxLength 1000
+                  // Campo del comentario; máximo 1000 caracteres, igual que en la API.
                   TextField(
                     controller: _textoComentario,
                     maxLines: 4,
@@ -181,7 +187,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      // COMENTARIOS C3: llama a _publicarComentario(dialogContext)
                       onPressed: () => _publicarComentario(dialogContext),
                       child: const Text('Publicar comentario'),
                     ),
@@ -195,7 +200,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     );
   }
 
-  // AUTORIZADO MÓDULO EDITAR: Acciones de administrador (Sección 2.3 y Mockup N2)
+  /// Botones del administrador: «Editar publicación» y «Moderar comentarios».
   Widget _buildAccionesAdmin(BuildContext context) {
     final botonEditar = SizedBox(
       width: double.infinity,
@@ -204,7 +209,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         onPressed: () async {
           final navegador = Navigator.of(context);
 
-          // AUTORIZADO MÓDULO EDITAR: Navegación a AddBlogPage con post y argumentos de usuario
+          // Abre el formulario en modo edición con esta publicación.
           final cambio = await navegador.push<bool>(
             MaterialPageRoute<bool>(
               settings: RouteSettings(arguments: widget.usuario ?? {}),
@@ -212,7 +217,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
             ),
           );
 
-          // EDITAR D4: si se guardaron cambios, se regresa a la lista
+          // Si se guardaron cambios (true), se regresa a la lista
           // para que vuelva a cargar las publicaciones.
           if (cambio == true) {
             navegador.pop(true);
@@ -228,7 +233,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       height: 48,
       child: OutlinedButton.icon(
         onPressed: () {
-          // AUTORIZADO MÓDULO EDITAR: Navegación a ModerarComentariosPage
+          // Abre la pantalla de moderación de esta publicación.
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -236,7 +241,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
             ),
           );
         },
-        // REDISEÑO: Botón secundario con borde primary y texto primaryDark (Sección 2.3)
+        // Botón secundario (solo borde).
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primaryDark,
           backgroundColor: AppColors.surface,
@@ -255,7 +260,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // AUTORIZADO MÓDULO EDITAR: Lado a lado en pantallas de 600 px o más, apilados en móvil
+        // Lado a lado en pantallas de 600 px o más; uno sobre otro en el celular.
         final usarFila = MediaQuery.sizeOf(context).width >= 600;
         if (usarFila) {
           return Row(
@@ -276,8 +281,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme; // REDISEÑO
-    final colorScheme = Theme.of(context).colorScheme; // REDISEÑO
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final etiquetas = widget.post.tags
         .split(',')
         .map((e) => e.trim())
@@ -286,7 +291,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detalle de publicación')),
-      // REDISEÑO: Contenido centrado con ancho máximo de 720 px y padding de 24 px (Secciones 4 y 6)
+      // Contenido centrado con ancho máximo, para que se lea bien en Chrome.
       body: SingleChildScrollView(
         child: Align(
           alignment: Alignment.topCenter,
@@ -297,7 +302,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // REDISEÑO: Imagen con esquinas redondeadas de radio 12 o placeholder discreto
+                  // Imagen de la publicación o recuadro si no tiene.
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: AspectRatio(
@@ -306,7 +311,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           ? Image.network(
                               urlImagen(
                                 widget.post.imagen,
-                              ), // LÓGICA AUTORIZADA 1
+                              ),
                               width: double.infinity,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
@@ -318,7 +323,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // REDISEÑO: Etiquetas como chips con fondo primaryTint y texto 12 semibold primaryDark
+                  // Etiquetas como chips.
                   if (etiquetas.isNotEmpty) ...[
                     Wrap(
                       spacing: 8,
@@ -342,10 +347,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     const SizedBox(height: 16),
                   ],
 
-                  // REDISEÑO: Título de detalle en 28 bold textPrimary (Sección 6)
+                  // Título.
                   Text(widget.post.titulo, style: textTheme.headlineMedium),
                   const SizedBox(height: 8),
-                  // AUTOR E3: Autor debajo del título con ícono person_outline de 16 px y bodySmall en textSecondary
+                  // Autor de la publicación.
                   Row(
                     children: [
                       const Icon(
@@ -366,7 +371,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // REDISEÑO: Cuerpo en 16 regular con interlineado 1.5 en textPrimary (Secciones 3 y 6)
+                  // Contenido completo.
                   Text(
                     widget.post.descripcion.isNotEmpty
                         ? widget.post.descripcion
@@ -375,11 +380,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // AUTORIZADO MÓDULO EDITAR: Muestra botones de administración o sección desplegable de comentarios según modoAdmin
+                  // Administrador: botones de edición. Usuario: sección de comentarios.
                   if (widget.modoAdmin)
                     _buildAccionesAdmin(context)
                   else
-                    // COMENTARIOS C3: Tarjeta de comentarios conectada a futureComentarios con FutureBuilder
+                    // FutureBuilder redibuja la sección según la consulta: cargando, error,
+                    // vacía o con comentarios. La sección se puede desplegar y plegar.
                     FutureBuilder<List<ComentarioModel>>(
                       future: futureComentarios,
                       builder: (context, snapshot) {
@@ -572,7 +578,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     ),
                                   ),
                                 const SizedBox(height: 8),
-                                // REDISEÑO: Botón "Agregar comentario" alineado abajo a la derecha (alto 48, radio 8)
+                                // Botón para abrir el diálogo de nuevo comentario.
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: ElevatedButton.icon(

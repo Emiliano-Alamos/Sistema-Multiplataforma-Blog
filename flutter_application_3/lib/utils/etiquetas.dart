@@ -1,4 +1,4 @@
-// Etiquetas relacionadas con las tecnologías emergentes
+/// Lista fija de etiquetas que se ofrecen al crear o editar una publicación.
 const List<String> kEtiquetasFijas = [
   'IA',
   'Inteligencia Artificial',
@@ -14,7 +14,8 @@ const List<String> kEtiquetasFijas = [
   'Nuevo',
 ];
 
-// Mantiene disponible la etiqueta actual al editar una publicación
+/// Opciones del selector de etiqueta. Si la publicación que se edita tiene
+/// una etiqueta que ya no está en la lista, se agrega al inicio para no perderla.
 List<String> obtenerOpcionesEtiquetas(String? etiquetaActual) {
   final actual = etiquetaActual?.trim() ?? '';
 

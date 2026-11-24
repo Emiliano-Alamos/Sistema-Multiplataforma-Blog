@@ -127,22 +127,31 @@ if main.engine.url.database != BASE_PRUEBAS:
     raise RuntimeError("FastAPI no apunta a la base de pruebas; se detuvo la ejecución.")
 
 
+# ============================================================================
+# Utilidades compartidas: cliente de pruebas, encabezado con token, login y
+# los usuarios y la publicación que usan varias pruebas.
+# ============================================================================
+
+# Cliente que hace peticiones a la API sin levantar un servidor real.
 @pytest.fixture(scope="session")
 def c():
     with TestClient(main.app) as cliente:
         yield cliente
 
 
+# Arma el encabezado Authorization con el token.
 def h(token):
     return {"Authorization": f"Bearer {token}"}
 
 
+# Inicia sesión y devuelve la respuesta completa (token y usuario).
 def login(c, mail, password="Clave12345"):
     r = c.post("/login", json={"mail": mail, "password": password})
     assert r.status_code == 200, r.text
     return r.json()
 
 
+# Administrador de prueba: se registra (queda como general) y se promueve con SQL.
 @pytest.fixture(scope="session")
 def admin(c):
     r = c.post(
@@ -153,6 +162,7 @@ def admin(c):
     return login(c, "admin@x.com")
 
 
+# Usuario general de prueba.
 @pytest.fixture(scope="session")
 def general(c):
     r = c.post(
@@ -163,6 +173,7 @@ def general(c):
     return login(c, "gral@x.com")
 
 
+# Publicación base que usan varias pruebas.
 @pytest.fixture(scope="session")
 def post_id(c, admin):
     r = c.post(
@@ -175,7 +186,7 @@ def post_id(c, admin):
 
 
 # ============================================================================
-# PASO A · Sesiones con token y control de acceso
+# Sesiones con token (JWT) y control de acceso por rol
 # ============================================================================
 
 
@@ -232,6 +243,7 @@ def test_login_mayusculas_y_espacios(c, admin):
     )
 
 
+# Endpoints que deben responder 401 si no se envía token.
 PROTEGIDOS = [
     ("get", "/usuarios"),
     ("put", "/usuarios/1"),
@@ -256,6 +268,7 @@ def test_publicos(c):
     assert c.get("/").status_code == 200
 
 
+# Fabrica un token a mano (vencido, alterado, con otra clave) para probar rechazos.
 def tok(datos, secreto=SECRETO, alg="HS256"):
     return jwt.encode(datos, secreto, algorithm=alg)
 
@@ -565,10 +578,11 @@ def test_blog_con_foto_admin(c, admin):
 
 
 # ============================================================================
-# PASO B · Eliminar usuarios (transacción, propia cuenta, último administrador)
+# Eliminar usuarios (transacción, propia cuenta, último administrador)
 # ============================================================================
 
 
+# Crea un usuario de prueba con el rol indicado.
 def nuevo(c, admin, mail, tipo=2):
     r = c.post(
         "/usuarios",
@@ -579,6 +593,7 @@ def nuevo(c, admin, mail, tipo=2):
     return r.json()["id_usr"]
 
 
+# Inicia sesión con ese usuario y publica un comentario.
 def comentar(c, mail, post_id, texto):
     t = login(c, mail)["access_token"]
     assert (
@@ -698,7 +713,7 @@ def test_b_si_falla_no_queda_a_medias(c, admin, post_id):
 
 
 # ============================================================================
-# PASO E · Autor de la publicación
+# Autor de la publicación
 # ============================================================================
 
 
@@ -784,10 +799,11 @@ def test_e_eliminar_autor_conserva_sus_publicaciones(c, admin, post_id):
 
 
 # ============================================================================
-# PASO C · Crear y leer comentarios
+# Crear y leer comentarios
 # ============================================================================
 
 
+# Publicación exclusiva para las pruebas de comentarios.
 @pytest.fixture(scope="session")
 def pub_c(c, admin):
     r = c.post(
@@ -928,10 +944,11 @@ FOTO = {"imagen": ("nueva.png", b"\x89PNG", "image/png")}
 
 
 # ============================================================================
-# PASO D · Editar y eliminar publicaciones, moderar comentarios
+# Editar y eliminar publicaciones, moderar comentarios
 # ============================================================================
 
 
+# Publicación nueva para cada prueba de edición y eliminación.
 @pytest.fixture()
 def pub(c, admin):
     r = c.post(
@@ -1187,7 +1204,7 @@ def test_d_si_falla_eliminar_publicacion_no_queda_a_medias(c, admin, general, pu
 
 
 # ============================================================================
-# PASO F · Fecha de la publicación
+# Fecha de la publicación
 # ============================================================================
 
 
@@ -1215,7 +1232,7 @@ def test_f_api_devuelve_la_fecha(c, admin, general):
 
 
 # ============================================================================
-# PASO G · Buscador y filtro por etiqueta en GET /blog (mismas reglas que la web)
+# Buscador y filtro por etiqueta en GET /blog
 # ============================================================================
 
 

@@ -1,11 +1,12 @@
-// AUTORIZADO MÓDULO EDITAR
 import 'package:flutter/material.dart';
 
-import '../models/comentario_model.dart'; // MODERAR D6
+import '../models/comentario_model.dart';
 import '../models/post_model.dart';
-import '../services/comentario_service.dart'; // MODERAR D6
-import '../theme/app_theme.dart'; // REDISEÑO
+import '../services/comentario_service.dart';
+import '../theme/app_theme.dart';
 
+/// Pantalla del administrador para moderar los comentarios de una publicación:
+/// muestra todos y permite eliminarlos de forma definitiva.
 class ModerarComentariosPage extends StatefulWidget {
   final PostModel post;
 
@@ -16,23 +17,24 @@ class ModerarComentariosPage extends StatefulWidget {
 }
 
 class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
-  // MODERAR D6
   final ComentarioService comentarioService = ComentarioService();
-  late Future<List<ComentarioModel>> futureComentarios;
+  late Future<List<ComentarioModel>> futureComentarios; // consulta en curso
 
   @override
+  // Al abrir la pantalla se piden los comentarios a la API.
   void initState() {
     super.initState();
     futureComentarios = comentarioService.obtenerParaModerar(widget.post.id);
   }
 
+  /// Vuelve a consultar los comentarios; setState redibuja la pantalla.
   void _recargarComentarios() {
     setState(() {
       futureComentarios = comentarioService.obtenerParaModerar(widget.post.id);
     });
   }
 
-  // MODERAR D6: elimina el comentario en la API y recarga la lista.
+  /// Elimina el comentario en la API y recarga la lista.
   Future<void> _eliminarComentario(int id) async {
     final mensajes = ScaffoldMessenger.of(context);
 
@@ -53,7 +55,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
     }
   }
 
-  // AUTORIZADO MÓDULO EDITAR: Diálogo de confirmación según sección 2.6
+  /// Pide confirmación antes de eliminar; solo elimina si se acepta.
   Future<void> _confirmarEliminar(int id) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -62,7 +64,6 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
         final colores = tema.colorScheme;
 
         return AlertDialog(
-          // REDISEÑO: Diálogo de radio 12 heredado del tema con textos exactos de la sección 2.6
           title: const Text('Eliminar comentario'),
           content: const Text('¿Estás seguro de eliminar este comentario?'),
           actions: [
@@ -76,7 +77,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              // REDISEÑO: Botón de peligro con relleno error y texto blanco (Sección 5 y 2.6)
+              // Botón en rojo porque la acción no se puede deshacer.
               style: ElevatedButton.styleFrom(
                 backgroundColor: colores.error,
                 foregroundColor: colores.onError,
@@ -101,7 +102,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
     }
   }
 
-  // REDISEÑO: Estado vacío con ícono de foro en círculo primaryTint y mensaje exacto (Sección 2.5)
+  /// Mensaje que se muestra cuando la publicación no tiene comentarios.
   Widget _buildEstadoVacio(ThemeData tema) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
@@ -138,12 +139,12 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tema = Theme.of(context); // REDISEÑO
-    final colores = tema.colorScheme; // REDISEÑO
+    final tema = Theme.of(context);
+    final colores = tema.colorScheme;
 
     return Scaffold(
-      // REDISEÑO: AppBar con flecha de regreso automática y título «Moderar comentarios» (Sección 2.5)
       appBar: AppBar(title: const Text('Moderar comentarios')),
+      // FutureBuilder redibuja la pantalla según avanza la consulta a la API.
       body: FutureBuilder<List<ComentarioModel>>(
         future: futureComentarios,
         builder: (context, snapshot) {
@@ -152,19 +153,20 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
           final comentarios = (!cargando && !tieneError && snapshot.hasData)
               ? snapshot.data!
               : <ComentarioModel>[];
+          // Texto del contador: «1 comentario» o «N comentarios».
           final cantidad = comentarios.length;
           final textoCantidad = cantidad == 1
               ? '1 comentario'
               : '$cantidad comentarios';
 
           return Center(
-            // REDISEÑO: Contenido centrado con ancho máximo de 720 px (Sección 4 y 2.5)
+            // Contenido centrado con ancho máximo, para que se vea bien en Chrome.
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // REDISEÑO: Tarjeta de encabezado primaryTint según mockup N4 y sección 2.5
+                  // Encabezado con el título de la publicación y el total de comentarios.
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -212,7 +214,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // MODERAR D6: Estados de carga, error, vacío o lista real
+                  // Según el estado de la consulta: cargando, error, vacío o la lista.
                   if (cargando)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 48),
@@ -269,7 +271,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // REDISEÑO: Avatar de iniciales en círculo primaryTint con texto primaryDark
+                              // Círculo con las iniciales del autor.
                               CircleAvatar(
                                 radius: 22,
                                 backgroundColor: AppColors.primaryTint,
@@ -295,7 +297,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              // REDISEÑO: Nombre en semibold y fecha en estilo secundario (Sección 2.5)
+                                              // Nombre del autor y fecha del comentario.
                                               Text(
                                                 item.autor,
                                                 style: tema
@@ -320,7 +322,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
                                             ],
                                           ),
                                         ),
-                                        // REDISEÑO: Botón de eliminar en color error con tooltip y área táctil de 48 px
+                                        // Botón para eliminar este comentario (pide confirmación).
                                         IconButton(
                                           onPressed: () =>
                                               _confirmarEliminar(item.id),
@@ -337,7 +339,7 @@ class _ModerarComentariosPageState extends State<ModerarComentariosPage> {
                                       ],
                                     ),
                                     const SizedBox(height: 8),
-                                    // REDISEÑO: Texto del comentario de hasta 3 líneas en cuerpo regular
+                                    // Texto del comentario.
                                     Text(
                                       item.comentario,
                                       maxLines: 3,

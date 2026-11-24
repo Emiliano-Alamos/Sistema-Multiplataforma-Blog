@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../services/sesion.dart'; // SESIONES S8
+import '../services/sesion.dart';
 
 typedef JsonMap = Map<String, dynamic>;
 
+/// Menú lateral del administrador: datos de la cuenta, opciones del panel
+/// y cerrar sesión.
 class AdminDrawer extends StatelessWidget {
   final JsonMap usuario;
-  final String rutaActual;
+  final String rutaActual; // pantalla abierta, para resaltarla en el menú
 
   const AdminDrawer({
     super.key,
@@ -14,9 +16,12 @@ class AdminDrawer extends StatelessWidget {
     required this.rutaActual,
   });
 
+  // Nombre y correo del usuario, con valores por omisión si faltan.
   String get nombre => usuario['nom_usr']?.toString() ?? 'Administrador';
   String get correo => usuario['mail']?.toString() ?? '';
 
+  /// Cierra el menú y abre la pantalla elegida, pasando los datos del usuario.
+  /// Si ya está en esa pantalla, solo cierra el menú.
   void _navegar(BuildContext context, String ruta) {
     Navigator.pop(context);
     if (ruta == rutaActual) return;
@@ -28,6 +33,7 @@ class AdminDrawer extends StatelessWidget {
     final tema = Theme.of(context);
     final colores = tema.colorScheme;
     final nombreLimpio = nombre.trim();
+    // Primera letra del nombre para el círculo del encabezado.
     final inicial = nombreLimpio.isEmpty
         ? 'A'
         : nombreLimpio.substring(0, 1).toUpperCase();
@@ -37,6 +43,7 @@ class AdminDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
+            // Encabezado con inicial, nombre y correo.
             UserAccountsDrawerHeader(
               margin: EdgeInsets.zero,
               decoration: BoxDecoration(color: colores.primary),
@@ -67,6 +74,7 @@ class AdminDrawer extends StatelessWidget {
               ),
             ),
             Expanded(
+              // Opciones del panel.
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
                 children: [
@@ -83,7 +91,6 @@ class AdminDrawer extends StatelessWidget {
                     '/register',
                   ),
                   _opcion(context, Icons.post_add, 'Agregar blog', '/add-blog'),
-                  // AUTORIZADO MÓDULO EDITAR
                   _opcion(
                     context,
                     Icons.edit_note_outlined,
@@ -99,6 +106,7 @@ class AdminDrawer extends StatelessWidget {
                 ],
               ),
             ),
+            // Cerrar sesión: borra el token y regresa al login sin historial.
             Divider(color: colores.outline, height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
@@ -114,7 +122,7 @@ class AdminDrawer extends StatelessWidget {
                   ),
                 ),
                 onTap: () {
-                  Sesion.cerrar(); // SESIONES S8
+                  Sesion.cerrar();
                   Navigator.pushNamedAndRemoveUntil(
                     context,
                     '/login',
@@ -129,6 +137,7 @@ class AdminDrawer extends StatelessWidget {
     );
   }
 
+  /// Una opción del menú; se resalta si es la pantalla actual.
   Widget _opcion(
     BuildContext context,
     IconData icono,

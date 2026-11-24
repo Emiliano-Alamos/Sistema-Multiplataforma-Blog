@@ -4,6 +4,8 @@ import '../models/user_model.dart';
 import '../services/user_service.dart';
 import '../widgets/admin_drawer.dart';
 
+/// Pantalla «Gestión de usuarios» del administrador: lista los usuarios y
+/// permite editarlos o eliminarlos.
 class UsersPage extends StatefulWidget {
   const UsersPage({super.key});
 
@@ -14,12 +16,14 @@ class UsersPage extends StatefulWidget {
 class _UsersPageState extends State<UsersPage> {
   final UserService userService = UserService();
 
+  // Campos del diálogo de edición.
   final nombreController = TextEditingController();
   final correoController = TextEditingController();
   final direccionController = TextEditingController();
 
-  late Future<List<UserModel>> futuroUsuarios;
+  late Future<List<UserModel>> futuroUsuarios; // consulta en curso de la lista
   String nombreUsuario = 'Usuario';
+  // Administrador que inició sesión (se recibe como argumento de la ruta).
   Map<String, dynamic> usuarioActual = {
     'nom_usr': 'Usuario',
     'mail': '',
@@ -28,6 +32,7 @@ class _UsersPageState extends State<UsersPage> {
   bool argumentoLeido = false;
 
   @override
+  // Lee una sola vez los datos del administrador que llegan con la ruta.
   void didChangeDependencies() {
     super.didChangeDependencies();
 
@@ -45,12 +50,14 @@ class _UsersPageState extends State<UsersPage> {
   }
 
   @override
+  // Al abrir la pantalla se pide la lista de usuarios a la API.
   void initState() {
     super.initState();
     futuroUsuarios = userService.obtenerUsuarios();
   }
 
   @override
+  // Libera los controladores al cerrar la pantalla.
   void dispose() {
     nombreController.dispose();
     correoController.dispose();
@@ -58,12 +65,14 @@ class _UsersPageState extends State<UsersPage> {
     super.dispose();
   }
 
+  /// Vuelve a consultar la lista; setState redibuja la pantalla.
   void recargarUsuarios() {
     setState(() {
       futuroUsuarios = userService.obtenerUsuarios();
     });
   }
 
+  /// Muestra un mensaje temporal abajo (SnackBar).
   void mostrarMensaje(String mensaje) {
     if (!mounted) return;
 
@@ -71,9 +80,10 @@ class _UsersPageState extends State<UsersPage> {
         .showSnackBar(SnackBar(content: Text(mensaje)));
   }
 
-  // Abre el diálogo para editar un usuario existente.
-  // Los usuarios nuevos se crean desde «Registrar usuario» (register_user_page.dart).
+  /// Abre el diálogo para editar un usuario existente.
+  /// Los usuarios nuevos se crean desde «Registrar usuario» (register_user_page.dart).
   Future<void> mostrarFormulario({required UserModel usuario}) async {
+    // Llena los campos con los datos actuales.
     nombreController.text = usuario.nombre;
     correoController.text = usuario.correo;
     direccionController.text = usuario.direccion ?? '';
@@ -81,8 +91,9 @@ class _UsersPageState extends State<UsersPage> {
     final resultado = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        bool guardando = false;
+        bool guardando = false; // deshabilita los botones mientras se guarda
 
+        // StatefulBuilder permite redibujar solo el diálogo (actualizarDialogo).
         return StatefulBuilder(
           builder: (contextDialogo, actualizarDialogo) {
             return AlertDialog(
@@ -128,6 +139,7 @@ class _UsersPageState extends State<UsersPage> {
                           final correo = correoController.text.trim();
                           final direccion = direccionController.text.trim();
 
+                          // Validaciones antes de llamar a la API.
                           if (nombre.isEmpty || correo.isEmpty) {
                             ScaffoldMessenger.of(dialogContext).showSnackBar(
                               const SnackBar(
@@ -151,6 +163,7 @@ class _UsersPageState extends State<UsersPage> {
                           });
 
                           try {
+                            // El rol se conserva igual; aquí solo se editan los datos de contacto.
                             final actualizado = UserModel(
                               id: usuario.id,
                               nombre: nombre,
@@ -185,12 +198,14 @@ class _UsersPageState extends State<UsersPage> {
       },
     );
 
+    // Si se guardó (el diálogo devolvió true), recarga la lista.
     if (resultado == true && mounted) {
       recargarUsuarios();
       mostrarMensaje('Usuario actualizado correctamente');
     }
   }
 
+  /// Pide confirmación y elimina al usuario en la API; luego recarga la lista.
   Future<void> eliminarUsuario(UserModel usuario) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -226,7 +241,6 @@ class _UsersPageState extends State<UsersPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Los colores y textos se obtienen del tema compartido.
     final tema = Theme.of(context);
     final colores = tema.colorScheme;
 
@@ -264,8 +278,8 @@ class _UsersPageState extends State<UsersPage> {
         ],
       ),
       drawer: AdminDrawer(usuario: usuarioActual, rutaActual: '/users'),
-      // Se quitó únicamente el botón flotante +, ya que el menú
-      // lateral tiene la opción "Registrar usuario".
+      // La lista se dibuja según el estado de la consulta: cargando, error,
+      // vacía o con datos. Los usuarios nuevos se crean desde el menú lateral.
       body: FutureBuilder<List<UserModel>>(
         future: futuroUsuarios,
         builder: (context, snapshot) {
@@ -310,6 +324,7 @@ class _UsersPageState extends State<UsersPage> {
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
+              // Deslizar hacia abajo vuelve a cargar la lista.
               child: RefreshIndicator(
                 onRefresh: () async {
                   final nuevoFuturo = userService.obtenerUsuarios();

@@ -3,19 +3,22 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../models/post_model.dart'; // AUTORIZADO MÓDULO EDITAR
+import '../models/post_model.dart';
 import '../services/post_service.dart';
-import '../theme/app_theme.dart'; // REDISEÑO
-import '../utils/etiquetas.dart'; // AUTORIZADO ETIQUETA
-import '../utils/image_url.dart'; // LÓGICA AUTORIZADA 1
+import '../theme/app_theme.dart';
+import '../utils/etiquetas.dart';
+import '../utils/image_url.dart';
 import '../widgets/admin_drawer.dart';
 
+/// Formulario de publicaciones del administrador, en dos modos:
+/// - Agregar (sin post): crea una publicación con o sin fotografía.
+/// - Editar (con post): carga sus datos, guarda cambios o elimina la publicación.
 class AddBlogPage extends StatefulWidget {
-  final PostModel? post; // AUTORIZADO MÓDULO EDITAR
+  final PostModel? post; // publicación a editar (null = agregar)
 
   const AddBlogPage({
     super.key,
-    this.post, // AUTORIZADO MÓDULO EDITAR
+    this.post,
   });
 
   @override
@@ -23,6 +26,7 @@ class AddBlogPage extends StatefulWidget {
 }
 
 class _AddBlogPageState extends State<AddBlogPage> {
+  // Llave del formulario y controladores de sus campos.
   final _formKey = GlobalKey<FormState>();
   final _titulo = TextEditingController();
   final _descripcion = TextEditingController();
@@ -30,25 +34,25 @@ class _AddBlogPageState extends State<AddBlogPage> {
   final _tags = TextEditingController();
   final _servicio = PostService();
 
-  // fotografia seleccionada y bytes para la vista previa.
+  // Fotografía seleccionada y sus bytes para la vista previa y el envío.
   final ImagePicker _picker = ImagePicker();
   XFile? _foto;
   Uint8List? _imagenBytes;
 
-  bool _guardando = false;
-  Map<String, dynamic> _usuario = {};
+  bool _guardando = false; // true mientras se guarda o elimina
+  Map<String, dynamic> _usuario = {}; // administrador con sesión
 
-  // AUTORIZADO ETIQUETA: Estado y llave para controlar y reiniciar el selector de etiqueta
+  // Etiqueta elegida y contador que fuerza a reiniciar el selector.
   String? _etiquetaSeleccionada;
   int _dropdownResetCounter = 0;
 
-  // AUTORIZADO MÓDULO EDITAR: Bandera para distinguir modo edición de creación
+  /// true si se abrió para editar una publicación existente.
   bool get _esEdicion => widget.post != null;
 
   @override
+  // En modo edición, llena el formulario con los datos de la publicación.
   void initState() {
     super.initState();
-    // AUTORIZADO MÓDULO EDITAR: Inicializar controladores con los datos del post
     final post = widget.post;
     if (post != null) {
       _titulo.text = post.titulo;
@@ -57,13 +61,14 @@ class _AddBlogPageState extends State<AddBlogPage> {
           ? urlImagen(post.imagen)
           : post.imagen;
       _tags.text = post.tags;
-      // AUTORIZADO ETIQUETA: Inicializar el selector con la etiqueta actual en modo edición
+      // El selector empieza con la etiqueta actual.
       final tagInicial = post.tags.trim();
       _etiquetaSeleccionada = tagInicial.isNotEmpty ? tagInicial : null;
     }
   }
 
   @override
+  // Recibe los datos del administrador como argumento de la ruta.
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
@@ -73,6 +78,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
   }
 
   @override
+  // Libera los controladores al cerrar la pantalla.
   void dispose() {
     _titulo.dispose();
     _descripcion.dispose();
@@ -81,7 +87,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
     super.dispose();
   }
 
-  // REDISEÑO: Placeholder discreto en proporción 16:9 con fondo primaryTint para imagen ausente o fallida
+  /// Recuadro con ícono que se muestra si no hay imagen o no se pudo cargar.
   Widget _buildPlaceholder() {
     return Container(
       color: AppColors.primaryTint,
@@ -95,7 +101,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
     );
   }
 
-  // REDISEÑO: Etiqueta superior en semibold según disposición del mockup N3
+  /// Texto en negritas que va arriba de cada campo.
   Widget _buildEtiquetaCampo(ThemeData tema, String texto) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -109,14 +115,15 @@ class _AddBlogPageState extends State<AddBlogPage> {
     );
   }
 
-  // NUEVO (PRACTICA 1): abrir camara o elegir una imagen del dispositivo.
+  /// Abre la cámara o la galería (según origen) con image_picker y guarda
+  /// la foto para la vista previa. imageQuality: 75 reduce el peso del archivo.
   Future<void> _seleccionarFoto(ImageSource origen) async {
     try {
       final imagen = await _picker.pickImage(source: origen, imageQuality: 75);
 
       if (imagen == null) return;
 
-      // Image.memory funciona tanto en Flutter Web como en Android.
+      // Se leen los bytes porque Image.memory funciona igual en Flutter Web y en Android.
       final bytes = await imagen.readAsBytes();
 
       if (!mounted) return;
@@ -134,10 +141,12 @@ class _AddBlogPageState extends State<AddBlogPage> {
     }
   }
 
+  /// Valida el formulario y guarda: en modo edición actualiza; si no, crea
+  /// la publicación (con foto por multipart o sin foto por JSON).
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // EDITAR D3: en modo edición se actualiza la publicación en la API.
+    // En modo edición se actualiza la publicación en la API.
     if (_esEdicion) {
       await _guardarEdicion();
       return;
@@ -146,20 +155,18 @@ class _AddBlogPageState extends State<AddBlogPage> {
     setState(() => _guardando = true);
 
     try {
-      // NUEVO
-      // Si seleccionamos una fotografia, la enviamos a FastAPI.
+      // Si se eligió una fotografía, se envía el archivo a la API.
       if (_foto != null && _imagenBytes != null) {
         await _servicio.agregarPostConFoto(
           titulo: _titulo.text,
           descripcion: _descripcion.text,
           imagenBytes: _imagenBytes!,
           nombreArchivo: _foto!.name,
-          tags: _tags.text, // CORRECCIÓN TAGS
+          tags: _tags.text,
         );
       } else {
-        // ORIGINAL:
-        // Se conserva la funcion que ya utilizabamos
-        // para guardar publicaciones mediante JSON.
+        // Sin fotografía: se envían los datos en JSON,
+        // con la dirección de imagen escrita (opcional).
         await _servicio.agregarPost(
           titulo: _titulo.text,
           descripcion: _descripcion.text,
@@ -174,17 +181,17 @@ class _AddBlogPageState extends State<AddBlogPage> {
         const SnackBar(content: Text('Publicación agregada correctamente')),
       );
 
-      // Limpiar los campos originales.
+      // Limpia el formulario para capturar otra publicación.
       _titulo.clear();
       _descripcion.clear();
       _imagen.clear();
       _tags.clear();
 
-      // NUEVO: limpiar la fotografia y su vista previa.
+      // Quita la foto y su vista previa.
       setState(() {
         _foto = null;
         _imagenBytes = null;
-        // AUTORIZADO ETIQUETA: Reiniciar el selector a «Selecciona una etiqueta» tras guardar
+        // Regresa el selector a «Selecciona una etiqueta».
         _etiquetaSeleccionada = null;
         _dropdownResetCounter++;
       });
@@ -200,7 +207,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
     }
   }
 
-  // EDITAR D3: guarda los cambios de una publicación que ya existe.
+  /// Guarda los cambios de una publicación que ya existe.
   Future<void> _guardarEdicion() async {
     final post = widget.post!;
     final mensajes = ScaffoldMessenger.of(context);
@@ -257,7 +264,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
     }
   }
 
-  // ELIMINAR D9: diálogo de confirmación con el mismo diseño de moderar_comentarios_page.dart
+  /// Diálogo de confirmación para eliminar; devuelve true si se acepta.
   Future<bool?> _mostrarDialogoEliminar() {
     return showDialog<bool>(
       context: context,
@@ -266,7 +273,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
         final colores = tema.colorScheme;
 
         return AlertDialog(
-          // REDISEÑO: Diálogo de radio 12 heredado del tema con botón de peligro en colores error y onError
+          // Botón en rojo porque la acción no se puede deshacer.
           title: const Text('Eliminar publicación'),
           content: const Text(
             '¿Estás seguro de eliminar esta publicación? También se eliminarán sus comentarios. Esta acción no se puede deshacer.',
@@ -302,7 +309,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
     );
   }
 
-  // ELIMINAR D8: pide confirmación y elimina la publicación en la API.
+  /// Pide confirmación y elimina la publicación (y sus comentarios) en la API.
   Future<void> _eliminarPublicacion() async {
     final mensajes = ScaffoldMessenger.of(context);
     final navegador = Navigator.of(context);
@@ -336,14 +343,15 @@ class _AddBlogPageState extends State<AddBlogPage> {
     }
   }
 
-  // AUTORIZADO MÓDULO EDITAR: Disposición visual fiel al mockup N3 para Editar publicación
+  /// Formulario del modo edición: datos, fotografía, etiqueta y botones
+  /// «Guardar cambios» y «Eliminar publicación».
   Widget _buildFormularioEdicion(
     BuildContext context,
     ThemeData tema,
     ColorScheme colores,
     String nombre,
   ) {
-    // AUTORIZADO ETIQUETA: Lista de opciones para modo edición (incluye etiqueta antigua al inicio si aplica)
+    // Opciones de etiqueta (incluye la actual si ya no está en la lista).
     final opcionesEtiquetas = obtenerOpcionesEtiquetas(widget.post?.tags);
 
     return Form(
@@ -351,7 +359,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // REDISEÑO: Tarjeta 1 (Encabezado primaryTint + Título, Descripción y URL de imagen) según mockup N3
+          // Tarjeta 1: encabezado, título, descripción y dirección de imagen.
           Card(
             color: colores.surface,
             surfaceTintColor: colores.surface,
@@ -372,7 +380,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                   ),
                   child: Row(
                     children: [
-                      // REDISEÑO: Ícono de edición dentro de círculo blanco a la izquierda (mockup N3)
+                      // Ícono de edición dentro de un círculo.
                       Container(
                         width: 48,
                         height: 48,
@@ -443,7 +451,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
           ),
           const SizedBox(height: 16),
 
-          // REDISEÑO: Tarjeta 2 (Fotografía 16:9, botones gemelos y Etiquetas) según mockup N3
+          // Tarjeta 2: fotografía, botones de cámara y galería, y etiqueta.
           Card(
             color: colores.surface,
             surfaceTintColor: colores.surface,
@@ -466,7 +474,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // REDISEÑO: Vista previa 16:9 de radio 12 sobre los botones de foto (Sección 2.4 y mockup N3)
+                  // Vista previa: la foto nueva si se eligió; si no, la imagen actual.
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: AspectRatio(
@@ -481,7 +489,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                           ? Image.network(
                               urlImagen(
                                 widget.post!.imagen,
-                              ), // LÓGICA AUTORIZADA 1
+                              ),
                               width: double.infinity,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
@@ -496,7 +504,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                     Text(_foto!.name, style: tema.textTheme.bodyMedium),
                   ],
                   const SizedBox(height: 12),
-                  // REDISEÑO: Botones Tomar foto y Elegir foto en fila 50/50 (mockup N3)
+                  // Botones para tomar una foto o elegirla de la galería.
                   Row(
                     children: [
                       Expanded(
@@ -542,7 +550,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // AUTORIZADO ETIQUETA: Selector obligatorio de una sola opción en modo edición
+                  // Selector de etiqueta (obligatorio); al elegir, se copia a _tags.
                   _buildEtiquetaCampo(tema, 'Etiqueta'),
                   DropdownButtonFormField<String>(
                     key: ValueKey(_dropdownResetCounter),
@@ -573,7 +581,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
           ),
           const SizedBox(height: 16),
 
-          // REDISEÑO: Botón primario «Guardar cambios» de ancho completo fuera de la tarjeta (mockup N3)
+          // Guardar cambios; se deshabilita mientras se guarda.
           SizedBox(
             height: 48,
             child: ElevatedButton.icon(
@@ -584,7 +592,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
           ),
           const SizedBox(height: 12),
 
-          // ELIMINAR D9: Botón «Eliminar publicación» debajo de «Guardar cambios» solo en modo edición
+          // Eliminar publicación (pide confirmación).
           SizedBox(
             height: 48,
             child: OutlinedButton.icon(
@@ -612,11 +620,11 @@ class _AddBlogPageState extends State<AddBlogPage> {
     final nombre = _usuario['nom_usr']?.toString() ?? 'Administrador';
     final tema = Theme.of(context);
     final colores = tema.colorScheme;
-    // AUTORIZADO ETIQUETA: Lista de opciones para modo agregar
+    // Opciones de etiqueta para el modo agregar.
     final opcionesEtiquetas = obtenerOpcionesEtiquetas(null);
 
     return Scaffold(
-      // AUTORIZADO MÓDULO EDITAR: Flecha de regreso y título «Editar publicación» sin menú lateral en modo edición
+      // En modo edición: título «Editar publicación», flecha de regreso y sin menú lateral.
       appBar: AppBar(
         title: Text(_esEdicion ? 'Editar publicación' : 'Agregar blog'),
       ),
@@ -625,9 +633,10 @@ class _AddBlogPageState extends State<AddBlogPage> {
           : AdminDrawer(usuario: _usuario, rutaActual: '/add-blog'),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720), // REDISEÑO
+          constraints: const BoxConstraints(maxWidth: 720),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
+            // Elige el formulario según el modo.
             child: _esEdicion
                 ? _buildFormularioEdicion(context, tema, colores, nombre)
                 : Card(
@@ -717,7 +726,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                             ),
                             const SizedBox(height: 24),
 
-                            // Se conserva la selección de cámara y galería.
+                            // Botones para tomar una foto o elegirla de la galería.
                             Text(
                               'Fotografía de la publicación',
                               style: tema.textTheme.titleMedium,
@@ -781,7 +790,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                             ],
                             const SizedBox(height: 24),
 
-                            // AUTORIZADO ETIQUETA: Selector obligatorio de una sola opción en modo agregar
+                            // Selector de etiqueta (obligatorio); al elegir, se copia a _tags.
                             DropdownButtonFormField<String>(
                               key: ValueKey(_dropdownResetCounter),
                               initialValue: _etiquetaSeleccionada,
@@ -811,7 +820,7 @@ class _AddBlogPageState extends State<AddBlogPage> {
                             ),
                             const SizedBox(height: 24),
 
-                            // Mismo método de guardado y estado de carga.
+                            // Botón de guardar; se deshabilita mientras se guarda.
                             SizedBox(
                               height: 48,
                               child: ElevatedButton.icon(

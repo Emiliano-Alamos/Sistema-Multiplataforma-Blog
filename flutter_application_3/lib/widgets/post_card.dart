@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../models/post_model.dart';
-import '../theme/app_theme.dart'; // REDISEÑO
-import '../utils/image_url.dart'; // LÓGICA AUTORIZADA 1
+import '../theme/app_theme.dart';
+import '../utils/image_url.dart';
 
+/// Tarjeta de una publicación en la lista del blog: imagen, etiquetas,
+/// título, autor, descripción corta y botón para abrirla.
 class PostCard extends StatelessWidget {
   final PostModel post;
-  final VoidCallback onTap;
-  final String textoBoton; // AUTORIZADO MÓDULO EDITAR
+  final VoidCallback onTap; // acción al tocar la tarjeta o el botón
+  final String textoBoton; // «Leer publicación» o «Ver publicación» (modo edición)
 
   const PostCard({
     super.key,
     required this.post,
     required this.onTap,
-    this.textoBoton = 'Leer publicación', // AUTORIZADO MÓDULO EDITAR
+    this.textoBoton = 'Leer publicación',
   });
 
-  // REDISEÑO: Placeholder discreto en proporción 16:9 con fondo primaryTint para imagen ausente o fallida
+  /// Recuadro con ícono que se muestra si no hay imagen o no se pudo cargar.
   Widget _buildPlaceholder() {
     return Container(
       color: AppColors.primaryTint,
@@ -32,14 +34,15 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme; // REDISEÑO
+    final textTheme = Theme.of(context).textTheme;
+    // Separa las etiquetas guardadas como «IA, Robótica» en una lista.
     final etiquetas = post.tags
         .split(',')
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toList();
 
-    // REDISEÑO: Tarjeta blanca heredada de cardTheme (radio 12, borde border, elevación 1)
+    // InkWell hace que toda la tarjeta responda al toque.
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -51,12 +54,12 @@ class PostCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                // REDISEÑO: Imagen en proporción 16:9 según Sección 6 y mockup M4
+                // Imagen en proporción 16:9; si falla la carga, se muestra el recuadro.
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
                   child: post.imagen.trim().isNotEmpty
                       ? Image.network(
-                          urlImagen(post.imagen), // LÓGICA AUTORIZADA 1
+                          urlImagen(post.imagen),
                           width: double.infinity,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
@@ -72,7 +75,7 @@ class PostCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // REDISEÑO: Tags como chips con fondo primaryTint, radio 6 y texto 12 semibold primaryDark
+                  // Etiquetas como chips.
                   if (etiquetas.isNotEmpty) ...[
                     Wrap(
                       spacing: 8,
@@ -95,10 +98,9 @@ class PostCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                   ],
-                  // REDISEÑO: Título de tarjeta 18 semibold en textPrimary (Sección 3)
                   Text(post.titulo, style: textTheme.titleMedium),
                   const SizedBox(height: 4),
-                  // AUTOR E2: Autor en una línea con ícono person_outline de 16 px y bodySmall en textSecondary
+                  // Autor de la publicación.
                   Row(
                     children: [
                       const Icon(
@@ -118,7 +120,7 @@ class PostCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // REDISEÑO: Descripción de hasta 3 líneas en textSecondary (Sección 6)
+                  // Descripción recortada a 3 líneas.
                   Text(
                     post.descripcion,
                     maxLines: 3,
@@ -126,7 +128,7 @@ class PostCard extends StatelessWidget {
                     style: textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 8),
-                  // REDISEÑO: Acción "Leer publicación" como botón de texto en primaryDark con área táctil de 48 px
+                  // Botón para abrir la publicación.
                   TextButton.icon(
                     onPressed: onTap,
                     style: TextButton.styleFrom(
@@ -140,7 +142,7 @@ class PostCard extends StatelessWidget {
                       size: 18,
                       color: AppColors.primaryDark,
                     ),
-                    label: Text(textoBoton), // AUTORIZADO MÓDULO EDITAR
+                    label: Text(textoBoton),
                   ),
                 ],
               ),

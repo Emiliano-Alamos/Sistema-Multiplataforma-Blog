@@ -1,11 +1,13 @@
+/// Modelo de un comentario tal como lo devuelve la API.
 class ComentarioModel {
   final int id;
   final String comentario;
   final String fecha;
+  // 1 = visible.
   final int estatus;
   final int usuarioId;
   final int blogId;
-  // COMENTARIOS C1: nombre de quien escribió el comentario.
+  // Nombre de quien escribió el comentario.
   final String autor;
 
   ComentarioModel({
@@ -18,7 +20,7 @@ class ComentarioModel {
     this.autor = 'Usuario',
   });
 
-  // COMENTARIOS C1: iniciales del autor para el círculo (avatar).
+  /// Iniciales del autor para el círculo (avatar): «Ana López» → «AL».
   String get iniciales {
     final partes = autor
         .trim()
@@ -35,19 +37,21 @@ class ComentarioModel {
     return '${partes[0][0]}${partes[1][0]}'.toUpperCase();
   }
 
-  // COMENTARIOS C1: la API manda la fecha como 2026-11-16T18:30:00.
-  // Aquí se convierte a 16/11/2026 18:30 para mostrarla.
+  /// La API manda la fecha como 2026-11-16T18:30:00.
+  /// Aquí se convierte a 16/11/2026 18:30 para mostrarla.
   String get fechaCorta {
     final f = DateTime.tryParse(fecha);
 
     if (f == null) return fecha;
 
+    // Completa con cero a la izquierda: 5 → «05».
     String dos(int n) => n.toString().padLeft(2, '0');
 
     return '${dos(f.day)}/${dos(f.month)}/${f.year} '
         '${dos(f.hour)}:${dos(f.minute)}';
   }
 
+  /// Convierte el JSON de la API en un ComentarioModel.
   factory ComentarioModel.fromJson(Map<String, dynamic> json) {
     return ComentarioModel(
       id: (json['id_com'] as num).toInt(),

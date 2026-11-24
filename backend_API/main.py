@@ -1,3 +1,5 @@
+# API del blog en FastAPI: define todos los endpoints (login, usuarios,
+# publicaciones, fotografías y comentarios) y conecta con MySQL.
 from contextlib import asynccontextmanager
 
 import time
@@ -9,7 +11,7 @@ import shutil
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import select, delete, func, or_  # BUSCADOR: or_ para «título O descripción»
+from sqlalchemy import select, delete, func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from pwdlib import PasswordHash
 
@@ -26,7 +28,7 @@ from schemas import (
     LoginRequest,
     LoginRespuesta,
 )
-# SESIONES: funciones y dependencias definidas en seguridad.py
+# Tokens y control de acceso por rol (ver seguridad.py).
 from seguridad import (
     ENCABEZADO_TOKEN_RENOVADO,
     ROL_ADMIN,
@@ -38,9 +40,11 @@ from seguridad import (
 )
 
 
+# Hash de contraseñas con Argon2id (algoritmo recomendado por pwdlib).
 password_hash = PasswordHash.recommended()
 
 
+# Al arrancar la API crea las tablas que falten (no borra las existentes).
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -53,21 +57,22 @@ app = FastAPI(
 )
 
 
-# PERMITIR COMUNICACIÓN CON FLUTTER WEB
+# CORS: permite que Flutter Web (que corre en otro puerto de localhost)
+# pueda consumir la API desde el navegador.
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    # SESIONES: sin esta línea el navegador no deja que Flutter Web lea
+    # Sin esta línea el navegador no deja que Flutter Web lea
     # el encabezado donde viaja el token renovado.
     expose_headers=[ENCABEZADO_TOKEN_RENOVADO],
 )
 
 
-# CARPETA PARA GUARDAR Y MOSTRAR FOTOGRAFÍAS
-# Usamos la ubicación del propio main.py, no la carpeta donde abrimos la terminal.
+# Carpeta donde se guardan las fotografías y que se publica en /uploads.
+# Se usa la ubicación del propio main.py, no la carpeta donde se abrió la terminal.
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -99,12 +104,14 @@ def iniciar_sesion(
         datos.password,
         usuario.pass_hash,
     ):
+        # Mismo mensaje si el correo no existe o la contraseña falla,
+        # para no revelar qué correos están registrados.
         raise HTTPException(
             status_code=401,
             detail="Correo o contraseña incorrectos",
         )
 
-    # SESIONES: las credenciales son correctas, se crea el token.
+    # Las credenciales son correctas: se crea el token.
     # "inicio" es el momento del inicio de sesión (para el tope de 8 horas).
     inicio = int(time.time())
     token = crear_token(usuario.id_usr, inicio)
@@ -118,16 +125,18 @@ def iniciar_sesion(
 
 # USUARIOS
 
+# Lista todos los usuarios (solo administrador).
 @app.get("/usuarios", response_model=list[UsuarioRespuesta])
 def listar_usuarios(
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     return db.scalars(
         select(Usuario).order_by(Usuario.id_usr)
     ).all()
 
 
+# Registra un usuario y guarda su contraseña como hash.
 @app.post(
     "/usuarios",
     response_model=UsuarioRespuesta,
@@ -138,7 +147,7 @@ def crear_usuario(
     db: Session = Depends(obtener_sesion),
     actual: Usuario | None = Depends(usuario_opcional),
 ):
-    # CONTROL DE ACCESO: el registro es público, pero SIEMPRE crea un
+    # Control de acceso: el registro es público, pero SIEMPRE crea un
     # Usuario general. El rol que envía el cliente solo se respeta cuando
     # quien hace la petición es un administrador con sesión iniciada.
     tipo = ROL_USUARIO
@@ -160,6 +169,7 @@ def crear_usuario(
         db.commit()
         db.refresh(usuario)
 
+    # El correo es único en la base: si ya existe, se deshace y se responde 409.
     except IntegrityError:
         db.rollback()
 
@@ -171,6 +181,7 @@ def crear_usuario(
     return usuario
 
 
+# Edita nombre, correo, dirección y, si aplica, el rol de un usuario.
 @app.put(
     "/usuarios/{usuario_id}",
     response_model=UsuarioRespuesta,
@@ -179,11 +190,11 @@ def actualizar_usuario(
     usuario_id: int,
     datos: UsuarioActualizar,
     db: Session = Depends(obtener_sesion),
-    actual: Usuario = Depends(usuario_actual),  # SESIONES: exige sesión
+    actual: Usuario = Depends(usuario_actual),  # exige sesión
 ):
     es_admin = actual.tip_usu == ROL_ADMIN
 
-    # CONTROL DE ACCESO: un Usuario general solo puede editar su propio perfil.
+    # Control de acceso: un Usuario general solo puede editar su propio perfil.
     if not es_admin and usuario_id != actual.id_usr:
         raise HTTPException(
             status_code=403,
@@ -202,8 +213,8 @@ def actualizar_usuario(
     usuario.mail = datos.mail.strip().lower()
     usuario.dir_usr = datos.dir_usr
 
-    # CONTROL DE ACCESO: el rol solo cambia si un administrador edita a OTRO
-    # usuario. Nadie puede cambiarse el rol a sí mismo (igual que en la web);
+    # Control de acceso: el rol solo cambia si un administrador edita a OTRO
+    # usuario. Nadie puede cambiarse el rol a sí mismo;
     # por eso siempre queda al menos un administrador: el que hace el cambio.
     if es_admin and usuario_id != actual.id_usr:
         usuario.tip_usu = datos.tip_usu
@@ -223,13 +234,14 @@ def actualizar_usuario(
     return usuario
 
 
+# Elimina un usuario y sus comentarios (solo administrador).
 @app.delete("/usuarios/{usuario_id}")
 def eliminar_usuario(
     usuario_id: int,
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
-    # REGLA 1: un administrador no puede eliminar su propia cuenta.
+    # Regla 1: un administrador no puede eliminar su propia cuenta.
     # "admin" es el usuario dueño del token (quien hace la petición).
     if usuario_id == admin.id_usr:
         raise HTTPException(
@@ -245,7 +257,7 @@ def eliminar_usuario(
             detail="Usuario no encontrado",
         )
 
-    # REGLA 2: siempre debe quedar al menos un administrador.
+    # Regla 2: siempre debe quedar al menos un administrador.
     # Se cuentan los administradores SIN contar al que se va a eliminar.
     if usuario.tip_usu == ROL_ADMIN:
         otros_admins = db.scalar(
@@ -263,7 +275,7 @@ def eliminar_usuario(
                 detail="Debe quedar al menos un administrador en el sistema.",
             )
 
-    # TRANSACCIÓN: la base no borra en cascada, por eso primero se eliminan
+    # Transacción: la base no borra en cascada, por eso primero se eliminan
     # los comentarios del usuario y después el usuario. Las dos operaciones
     # se confirman juntas con un solo commit; si algo falla, el rollback
     # deshace todo y no queda nada a medias.
@@ -292,23 +304,24 @@ def eliminar_usuario(
 
 # BLOG
 
-# BUSCADOR DEL BLOG DE TECNOLOGÍAS EMERGENTES
+# Límites del buscador del blog.
 BUSQUEDA_MAX = 100        # largo máximo del texto escrito
 BUSQUEDA_PALABRAS = 8     # máximo de palabras que se buscan
 
 
+# Lista las publicaciones; acepta un texto de búsqueda y una etiqueta opcionales.
 @app.get(
     "/blog",
     response_model=list[BlogRespuesta])
 def listar_blog(
-    q: str | None = None,         # BUSCADOR: texto a buscar (opcional)
-    etiqueta: str | None = None,  # BUSCADOR: etiqueta a filtrar (opcional)
+    q: str | None = None,         # texto a buscar (opcional)
+    etiqueta: str | None = None,  # etiqueta a filtrar (opcional)
     db: Session = Depends(obtener_sesion),
-    actual: Usuario = Depends(usuario_actual),  # SESIONES: exige sesión
+    actual: Usuario = Depends(usuario_actual),  # exige sesión
 ):
     consulta = select(Blog)
 
-    # BUSCADOR 1. Texto: se quitan los espacios de los extremos y se recorta a 100 caracteres.
+    # 1. Texto: se quitan los espacios de los extremos y se recorta a 100 caracteres.
     texto = (q or "").strip()[:BUSQUEDA_MAX]
 
     # Buscamos cada palabra en el título, la descripción o las etiquetas.
@@ -316,7 +329,7 @@ def listar_blog(
     # Las mayúsculas dependen de la collation de MySQL.
     for palabra in texto.split()[:BUSQUEDA_PALABRAS]:
         # En LIKE, % y _ son comodines. Para buscarlos como texto normal se usa
-        # "|" como carácter de escape y se antepone a | % _ (igual que la web).
+        # "|" como carácter de escape y se antepone a | % _.
         palabra = palabra.replace("|", "||").replace("%", "|%").replace("_", "|_")
         patron = f"%{palabra}%"
         consulta = consulta.where(
@@ -327,7 +340,7 @@ def listar_blog(
             )
         )
 
-    # BUSCADOR 2. Filtramos por la etiqueta escrita, aunque no esté en una
+    # 2. Filtramos por la etiqueta escrita, aunque no esté en una
     # lista fija. FIND_IN_SET busca entre las etiquetas separadas por coma.
     etiqueta = (etiqueta or "").strip()
     if etiqueta:
@@ -338,24 +351,25 @@ def listar_blog(
             ) > 0
         )
 
-    # BUSCADOR 3. Orden igual que la web: la más reciente primero
+    # 3. Orden: la más reciente primero
     # (por fecha y, si la fecha es la misma, por id).
     consulta = consulta.order_by(Blog.fecha.desc(), Blog.id_blog.desc())
 
     return db.scalars(consulta).all()
 
+# Crea una publicación sin fotografía (datos en JSON).
 @app.post("/blog", response_model=BlogRespuesta, status_code=201)
 def crear_blog(
     datos:BlogCrear,
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     publicacion = Blog(
         titulo= datos.titulo.strip(),
         descripcion=datos.descripcion.strip(),
         img=datos.img.strip() if datos.img and datos.img.strip() else None,
         tags=datos.tags.strip() if datos.tags and datos.tags.strip() else None,
-        # AUTOR: es el administrador dueño del token, no un dato del cliente.
+        # El autor es el administrador dueño del token, no un dato del cliente.
         usr_id=admin.id_usr,
     )
     db.add(publicacion)
@@ -364,7 +378,8 @@ def crear_blog(
     return publicacion
 
 # Guarda la fotografía recibida en la carpeta uploads con un nombre al azar
-# y devuelve su ruta pública (/uploads/archivo.jpg). La usan crear y editar.
+# (uuid4, para que no se repita ni se pueda adivinar) y devuelve su ruta
+# pública (/uploads/archivo.jpg). La usan crear y editar.
 def guardar_imagen(imagen: UploadFile) -> str:
     extension = Path(imagen.filename or "").suffix.lower()
     if extension not in [".jpg", ".jpeg", ".png", ".webp"]:
@@ -379,16 +394,16 @@ def guardar_imagen(imagen: UploadFile) -> str:
     return f"/uploads/{nombre_archivo}"
 
 
-# NUEVO ENDPOINT: FORMULARIO CON FOTO
-# Se conserva el POST /blog original para no afectar a Flutter.
+# Crea una publicación con fotografía. Recibe un formulario multipart,
+# porque un archivo no puede enviarse dentro de JSON.
 @app.post("/blog/foto")
 async def crear_blog_con_foto(
     titulo: str = Form(...),
     descripcion: str = Form(...),
     imagen: UploadFile = File(...),
-    tags: str | None = Form(None),  # CORRECCIÓN TAGS
+    tags: str | None = Form(None),
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     if not titulo.strip() or not descripcion.strip():
         raise HTTPException(400, "El título y la descripción son obligatorios")
@@ -400,8 +415,8 @@ async def crear_blog_con_foto(
         titulo=titulo.strip(),
         descripcion=descripcion.strip(),
         img=ruta_publica,
-        tags=tags.strip() if tags and tags.strip() else None,  # CORRECCIÓN TAGS
-        # AUTOR: es el administrador dueño del token, no un dato del cliente.
+        tags=tags.strip() if tags and tags.strip() else None,
+        # El autor es el administrador dueño del token, no un dato del cliente.
         usr_id=admin.id_usr,
     )
     db.add(publicacion)
@@ -416,6 +431,7 @@ async def crear_blog_con_foto(
     }
 
 
+# Consulta una sola publicación por su id.
 @app.get(
     "/blog/{blog_id}",
     response_model=BlogRespuesta,
@@ -423,7 +439,7 @@ async def crear_blog_con_foto(
 def obtener_blog(
     blog_id: int,
     db: Session = Depends(obtener_sesion),
-    actual: Usuario = Depends(usuario_actual),  # SESIONES: exige sesión
+    actual: Usuario = Depends(usuario_actual),  # exige sesión
 ):
     publicacion = db.get(Blog, blog_id)
 
@@ -436,7 +452,7 @@ def obtener_blog(
     return publicacion
 
 
-# EDITAR: actualiza una publicación con JSON (sin fotografía nueva).
+# Actualiza una publicación con JSON (sin fotografía nueva).
 # La imagen queda con el valor de "img": para conservar la actual, la app
 # envía la misma ruta; si envía vacío, la publicación queda sin imagen.
 @app.put(
@@ -447,7 +463,7 @@ def actualizar_blog(
     blog_id: int,
     datos: BlogCrear,
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     publicacion = db.get(Blog, blog_id)
 
@@ -470,7 +486,7 @@ def actualizar_blog(
     return publicacion
 
 
-# EDITAR: actualiza una publicación y le pone una fotografía nueva.
+# Actualiza una publicación y le pone una fotografía nueva.
 @app.put(
     "/blog/{blog_id}/foto",
     response_model=BlogRespuesta,
@@ -482,7 +498,7 @@ async def actualizar_blog_con_foto(
     imagen: UploadFile = File(...),
     tags: str | None = Form(None),
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     publicacion = db.get(Blog, blog_id)
 
@@ -506,12 +522,12 @@ async def actualizar_blog_con_foto(
     return publicacion
 
 
-# ELIMINAR PUBLICACIÓN
+# Elimina una publicación y sus comentarios (solo administrador).
 @app.delete("/blog/{blog_id}")
 def eliminar_blog(
     blog_id: int,
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     publicacion = db.get(Blog, blog_id)
 
@@ -521,10 +537,10 @@ def eliminar_blog(
             detail="Publicación no encontrada",
         )
 
-    # TRANSACCIÓN: la base no borra en cascada, por eso primero se eliminan
+    # Transacción: la base no borra en cascada, por eso primero se eliminan
     # los comentarios de la publicación y después la publicación. Un solo
     # commit confirma las dos operaciones; si algo falla, el rollback
-    # deshace todo. (El archivo de imagen no se borra, igual que en la web.)
+    # deshace todo. (El archivo de imagen no se borra.)
     try:
         resultado = db.execute(
             delete(Comentario).where(Comentario.blog_id == blog_id)
@@ -550,7 +566,7 @@ def eliminar_blog(
 
 # COMENTARIOS
 
-# MODERAR: TODOS los comentarios de una publicación (visibles y ocultos),
+# Moderación: TODOS los comentarios de una publicación (visibles y ocultos),
 # del más reciente al más antiguo. Solo para el administrador.
 @app.get(
     "/blog/{blog_id}/comentarios/moderacion",
@@ -559,7 +575,7 @@ def eliminar_blog(
 def listar_comentarios_para_moderar(
     blog_id: int,
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     if db.get(Blog, blog_id) is None:
         raise HTTPException(
@@ -574,7 +590,7 @@ def listar_comentarios_para_moderar(
     ).all()
 
 
-# COMENTARIOS: los comentarios de UNA publicación. Es el que usa la app en
+# Comentarios visibles de UNA publicación. Es el que usa la app en
 # la pantalla de detalle.
 @app.get(
     "/blog/{blog_id}/comentarios",
@@ -583,7 +599,7 @@ def listar_comentarios_para_moderar(
 def listar_comentarios_de_blog(
     blog_id: int,
     db: Session = Depends(obtener_sesion),
-    actual: Usuario = Depends(usuario_actual),  # SESIONES: exige sesión
+    actual: Usuario = Depends(usuario_actual),  # exige sesión
 ):
     if db.get(Blog, blog_id) is None:
         raise HTTPException(
@@ -592,7 +608,7 @@ def listar_comentarios_de_blog(
         )
 
     # Solo los visibles (estatus = 1), del más reciente al más antiguo:
-    # la misma regla y el mismo orden que usa la web en el detalle.
+    # la misma regla y el mismo orden que usa la web.
     return db.scalars(
         select(Comentario)
         .where(
@@ -603,19 +619,21 @@ def listar_comentarios_de_blog(
     ).all()
 
 
+# Lista todos los comentarios de todas las publicaciones.
 @app.get(
     "/comentarios",
     response_model=list[ComentarioRespuesta],
 )
 def listar_comentarios(
     db: Session = Depends(obtener_sesion),
-    actual: Usuario = Depends(usuario_actual),  # SESIONES: exige sesión
+    actual: Usuario = Depends(usuario_actual),  # exige sesión
 ):
     return db.scalars(
         select(Comentario).order_by(Comentario.id_com)
     ).all()
 
 
+# Crea un comentario en una publicación (cualquier usuario con sesión).
 @app.post(
     "/comentarios",
     response_model=ComentarioRespuesta,
@@ -624,7 +642,7 @@ def listar_comentarios(
 def crear_comentario(
     datos: ComentarioCrear,
     db: Session = Depends(obtener_sesion),
-    actual: Usuario = Depends(usuario_actual),  # SESIONES: exige sesión
+    actual: Usuario = Depends(usuario_actual),  # exige sesión
 ):
     if not datos.comentario.strip():
         raise HTTPException(
@@ -640,7 +658,7 @@ def crear_comentario(
 
     nuevo = Comentario(
         comentario=datos.comentario.strip(),
-        # SESIONES: el autor es el dueño del token, no lo que diga el
+        # El autor es el dueño del token, no lo que diga el
         # cliente. Así nadie puede comentar a nombre de otra persona.
         usr_id=actual.id_usr,
         blog_id=datos.blog_id,
@@ -655,12 +673,12 @@ def crear_comentario(
     return nuevo
 
 
-# MODERAR: elimina un comentario de forma DEFINITIVA (igual que la web).
+# Moderación: elimina un comentario de forma DEFINITIVA (solo administrador).
 @app.delete("/comentarios/{comentario_id}")
 def eliminar_comentario(
     comentario_id: int,
     db: Session = Depends(obtener_sesion),
-    admin: Usuario = Depends(requiere_admin),  # SESIONES: solo administrador
+    admin: Usuario = Depends(requiere_admin),  # solo administrador
 ):
     comentario = db.get(Comentario, comentario_id)
 
